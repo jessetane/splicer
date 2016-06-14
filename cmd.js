@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 var Terminus = require('./')
 
 var server = new Terminus({

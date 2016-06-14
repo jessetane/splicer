@@ -41,6 +41,7 @@ module.exports = class Terminus {
           try {
             delete require.cache[hostFullPath]
             host = hosts[hostPath] = require(hostFullPath)
+            host.moduleId = hostFullPath
           } catch (err) {
             console.error('failed to load host at ' + hostPath)
             return
@@ -82,7 +83,7 @@ module.exports = class Terminus {
       }
       this.servers = servers
       for (hostPath in this.hosts) {
-        // unrequire host module here?
+        delete require.cache[host.moduleId]
         host = this.hosts[hostPath]
         host.close()
       }

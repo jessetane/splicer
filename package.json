@@ -1,0 +1,13 @@
+{
+  "name": "terminus",
+  "version": "1.0.0",
+  "author": "jesse.tane@gmail.com",
+  "license": "Public domain",
+  "dependencies": {
+    "is-tls-client-hello": "^1.0.0",
+    "sni": "^1.0.0"
+  },
+  "bin": {
+    "terminus": "cmd.js"
+  }
+}
