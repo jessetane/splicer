@@ -1,11 +1,12 @@
 'use strict'
 
+var EventEmitter = require('events')
 var fs = require('fs')
 var net = require('net')
 var isTLSClientHello = require('is-tls-client-hello')
 var sni = require('sni')
 
-module.exports = class Terminus {
+module.exports = class Terminus extends EventEmitter {
   constructor (opts) {
     this.hostsPath = opts.hostsPath
     this.hosts = {}
