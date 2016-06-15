@@ -8,6 +8,7 @@ var sni = require('sni')
 
 module.exports = class Terminus extends EventEmitter {
   constructor (opts) {
+    super()
     this.hostsPath = opts.hostsPath
     this.hosts = {}
     this.servers = {}
