@@ -25,11 +25,11 @@ module.exports = class Terminus {
       hostPaths.forEach(hostPath => {
         hostFullPath = this.hostsPath + '/' + hostPath
         try {
-          pkg = JSON.parse(fs.readFileSync(hostFullPath + '/package.json', 'utf8'))
+          pkg = JSON.parse(fs.readFileSync(hostFullPath + '/package.json', 'utf8')).terminus
           version = pkg.version
           main = pkg.main
         } catch (err) {}
-        version = version || '1.0.0'
+        version = version || '0'
         main = main || 'index.js'
         hostFullPath += '/' + main
         hostPath += '@' + version
