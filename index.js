@@ -102,7 +102,7 @@ module.exports = class Terminus extends EventEmitter {
         name = sni(data)
       } else {
         string = data.toString('ascii')
-        name = string.match(/host: ([^:]*)/i)
+        name = string.match(/host: ([^:\r\n]*)/i)
         if (name) name = name[1]
       }
       host = this.lookupHostByName(name)
@@ -122,7 +122,7 @@ module.exports = class Terminus extends EventEmitter {
       var _host = this.hosts[hostPath]
       if (_host.default === true) {
         defaultHost = _host
-      } else if (name) {
+      } else {
         if (_host.names.find(_name => {
           if (typeof _name === 'string') {
             return _name === name
