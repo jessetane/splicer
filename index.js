@@ -42,10 +42,12 @@ module.exports = class Terminus extends EventEmitter {
         } else {
           try {
             delete require.cache[hostFullPath]
-            host = hosts[hostPath] = require(hostFullPath)
+            host = require(hostFullPath)
+            if (!host.listen) throw new Error('no listeners')
+            hosts[hostPath] = host
             host.moduleId = hostFullPath
           } catch (err) {
-            console.error('failed to load host at ' + hostPath)
+            console.error('failed to load host at ' + hostPath, err)
             return
           }
         }
@@ -108,7 +110,10 @@ module.exports = class Terminus extends EventEmitter {
       host = this.lookupHostByName(name)
       if (host) {
         socket.unshift(data)
-        host.listen[socket.localPort](socket, name)
+        var handler = host.listen[socket.localPort]
+        if (handler) {
+          handler(socket, name)
+        }
       } else {
         socket.destroy()
       }
