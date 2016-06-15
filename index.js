@@ -120,8 +120,9 @@ module.exports = class Terminus extends EventEmitter {
     var host = null
     for (var hostPath in this.hosts) {
       var _host = this.hosts[hostPath]
-      if (_host.default === true) defaultHost = _host
-      if (name) {
+      if (_host.default === true) {
+        defaultHost = _host
+      } else if (name) {
         if (_host.names.find(_name => {
           if (typeof _name === 'string') {
             return _name === name
