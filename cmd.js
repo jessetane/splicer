@@ -6,4 +6,7 @@ var server = new Terminus({
   hostsPath: process.env.HOSTS_PATH || __dirname + '/hosts'
 })
 
-process.on('SIGHUP', server.reload)
+process.on('SIGHUP', () => {
+  console.log('got SIGHUP, reloading')
+  server.reload()
+})
