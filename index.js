@@ -113,6 +113,8 @@ module.exports = class Terminus extends EventEmitter {
         var handler = host.listen[socket.localPort]
         if (handler) {
           handler(socket, name)
+        } else {
+          socket.destroy()
         }
       } else {
         socket.destroy()
