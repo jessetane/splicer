@@ -9,5 +9,8 @@
   },
   "bin": {
     "terminus": "cmd.js"
+  },
+  "devDependencies": {
+    "tape": "^4.5.1"
   }
 }

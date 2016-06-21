@@ -4,7 +4,10 @@ var EventEmitter = require('events')
 var fs = require('fs')
 var net = require('net')
 var isTLSClientHello = require('is-tls-client-hello')
-var sni = require('sni')
+var extractSNI = require('sni')
+
+var isHTTPRegex = /[^\r\n]*HTTP\/1\.1[\r\n]/
+var extractHTTPHost = /[\r\n]host: ([^:\r\n ]+)/i
 
 module.exports = class Terminus extends EventEmitter {
   constructor (opts) {
@@ -19,95 +22,171 @@ module.exports = class Terminus extends EventEmitter {
   }
 
   reload () {
-    fs.readdir(this.hostsPath, (err, hostPaths) => {
-      if (err) return this.emit('error', err)
-      var hosts = {}
-      var servers = {}
-      var hostPath, hostFullPath, pkg, version, main, host, server, address, port, addr, sep
-      hostPaths.forEach(hostPath => {
-        hostFullPath = this.hostsPath + '/' + hostPath
-        try {
-          pkg = JSON.parse(fs.readFileSync(hostFullPath + '/package.json', 'utf8')).terminus
-          version = pkg.version
-          main = pkg.main
-        } catch (err) {}
-        version = version || '0'
-        main = main || 'index.js'
-        hostFullPath += '/' + main
-        hostPath += '@' + version
-        host = this.hosts[hostPath]
+    this.loadHostConfigurations((err, configurations) => {
+      if (err) return this.emit(err)
+      var activeHosts = {}
+      var activeServers = {}
+      configurations.forEach(configuration => {
+        var host = this.lookupOrLoadHost(configuration, activeHosts)
         if (host) {
-          hosts[hostPath] = host
-          delete this.hosts[hostPath]
-        } else {
-          try {
-            delete require.cache[hostFullPath]
-            host = require(hostFullPath)
-            if (!host.listen) throw new Error('no listeners')
-            hosts[hostPath] = host
-            host.moduleId = hostFullPath
-          } catch (err) {
-            console.error('failed to load host at ' + hostPath, err)
-            return
-          }
-        }
-        for (address in host.listen) {
-          addr = '::'
-          port = null
-          sep = address.lastIndexOf(':')
-          if (sep === -1) {
-            port = address
-          } else {
-            addr = address.slice(0, sep) || '::'
-            port = address.slice(sep)
-          }
-          server = this.servers[addr] && this.servers[addr][port]
-          if (server) {
-            delete this.servers[addr][port]
-          } else {
-            server = servers[addr] && servers[addr][port]
-            if (!server) {
-              server = net.createServer(this.onconnect)
-              server.on('error', this.onserverError)
-              server.listen(port, addr)
-              console.log(`started listening on ${addr}:${port}`)
-            }
-          }
-          servers[addr] = servers[addr] || {}
-          servers[addr][port] = server
+          this.lookupOrStartServer(host, activeServers)
         }
       })
-      for (addr in this.servers) {
-        for (port in this.servers[addr]) {
-          server = this.servers[addr][port]
-          server.removeListener('error', this.onserverError)
-          server.close() // destroy?
-          console.log(`stopped listening on ${addr}:${port}`)
-        }
-      }
-      this.servers = servers
-      for (hostPath in this.hosts) {
-        delete require.cache[host.moduleId]
-        host = this.hosts[hostPath]
-        host.close()
-      }
-      this.hosts = hosts
+      this.stopInactiveServers(activeServers)
+      this.unloadInactiveHosts(activeHosts)
     })
   }
 
+  loadHostConfigurations (cb) {
+    fs.readdir(this.hostsPath, (err, hostIds) => {
+      if (err) return cb(err)
+      var n = hostIds.length
+      var configurations = []
+      hostIds.forEach(id => {
+        var fullPath = this.hostsPath + '/' + id
+        fs.stat(fullPath, (err, stat) => {
+          if (!cb) return
+          if (err) return done(err)
+          if (stat.isDirectory()) {
+            fs.readFile(fullPath + '/package.json', 'utf8', (err, data) => {
+              if (!cb) return
+              if (err && err.code !== 'ENOENT') return done(err)
+              var pkg = {}
+              try {
+                pkg = JSON.parse(data)
+              } catch (err) {}
+              pkg = pkg.terminus || {}
+              configurations.push({
+                id: id + '@' + (pkg.version || '0'),
+                main: fullPath + '/' + (pkg.main || 'index.js'),
+              })
+              done()
+            })
+          } else {
+            configurations.push({
+              id: id + '@0',
+              main: fullPath,
+            })
+            done()
+          }
+        })
+      })
+      function done (err) {
+        if (!cb) return
+        if (err) {
+          var _cb = cb
+          cb = null
+          _cb(err)
+          return
+        }
+        if (--n > 0) return
+        cb(null, configurations)
+      }
+    })
+  }
+
+  lookupOrLoadHost (configuration, actives) {
+    var id = configuration.id
+    var main = configuration.main
+    var host = this.hosts[id]
+    if (host) {
+      delete this.hosts[id]
+    } else {
+      delete require.cache[main]
+      try {
+        host = require(main)
+      } catch (err) {
+        // this.emit('error', err)
+        return
+      }
+      host.cacheKey = main
+      if (!host.listen) {
+        this.emit('error', Error('host has no listeners'))
+        return
+      }
+    }
+    return actives[id] = host
+  }
+
+  lookupOrStartServer (host, actives) {
+    for (var address in host.listen) {
+      var addr = '::'
+      var port = null
+      var sep = address.lastIndexOf(':')
+      if (sep === -1) {
+        port = address
+      } else {
+        addr = address.slice(0, sep) || '::'
+        port = address.slice(sep)
+      }
+      var server = this.servers[addr] && this.servers[addr][port]
+      if (server) {
+        delete this.servers[addr][port]
+      } else {
+        server = actives[addr] && actives[addr][port]
+        if (!server) {
+          server = net.createServer(this.onconnect)
+          server.address = addr + ':' + port
+          server.on('error', this.onserverError)
+          server.listen(port, addr, err => {
+            if (err) {
+              this.emit('error', err)
+            } else {
+              this.emit('listen', server.address)
+            }
+          })
+        }
+      }
+      actives[addr] = actives[addr] || {}
+      actives[addr][port] = server
+    }
+  }
+
+  stopInactiveServers (actives) {
+    for (var addr in this.servers) {
+      for (var port in this.servers[addr]) {
+        var server = this.servers[addr][port]
+        server.removeListener('error', this.onserverError)
+        server.close() // do we need to destroy sockets here?
+        this.emit('unlisten', server.address)
+      }
+    }
+    this.servers = actives
+  }
+
+  unloadInactiveHosts (actives) {
+    for (var id in this.hosts) {
+      var host = this.hosts[id]
+      host.close && host.close()
+      delete require.cache[host.cacheKey]
+    }
+    this.hosts = actives
+  }
+
   onconnect (socket) {
+    // console.log(socket.localPort)
+    // var socketId = socket.remoteAddress + socket.remotePort
+    // this.sockets[socketId] = socket
+    // socket.once('close', () => {
+    //   delete this.sockets[socketId]
+    // })
     socket.once('readable', () => {
       var data = socket.read()
       if (!data || data.length === 0) return
       var host, string, name = null
+      var id = null
       if (isTLSClientHello(data)) {
-        name = sni(data)
+        name = extractSNI(data)
       } else {
-        string = data.toString('ascii')
-        name = string.match(/host: ([^:\r\n]*)/i)
-        if (name) name = name[1]
+        var first1024 = data.toString('ascii', 0, 1024)
+        if (isHTTPRegex.test(first1024)) {
+          name = first1024.match(extractHTTPHost)
+          name = name && name[1]
+        } else {
+          id = first1024.split('\n')[0].slice(0,255)
+        }
       }
-      host = this.lookupHostByName(name)
+      host = this.lookupHostByName(name, id)
       if (host) {
         socket.unshift(data)
         var handler = host.listen[socket.localPort]
@@ -122,15 +201,14 @@ module.exports = class Terminus extends EventEmitter {
     })
   }
 
-  lookupHostByName (name) {
-    var defaultHost = null
+  lookupHostByName (name, id) {
+    var isName = !!name
     var host = null
-    for (var hostPath in this.hosts) {
-      var _host = this.hosts[hostPath]
-      if (_host.default === true) {
-        defaultHost = _host
-      } else {
-        if (_host.names.find(_name => {
+    for (var id in this.hosts) {
+      var _host = this.hosts[id]
+      var names = isName ? _host.names : _host.ids
+      if (names) {
+        if (names.find(_name => {
           if (typeof _name === 'string') {
             return _name === name
           } else {
@@ -142,10 +220,15 @@ module.exports = class Terminus extends EventEmitter {
         }
       }
     }
-    return host || defaultHost
+    return host
+  }
+
+  close () {
+    this.stopInactiveServers()
+    this.unloadInactiveHosts()
   }
 
   onserverError (err) {
-    console.error('external server got error', err)
+    this.emit('error', err)
   }
 }
