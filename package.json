@@ -10,7 +10,7 @@
   "devDependencies": {
     "autocert": "^2.0.0",
     "firebase": "^3.1.0",
-    "realtime-collection": "github:jessetane/realtime-collection#1.0.1"
+    "realtime-collection": "github:jessetane/realtime-collection#1.1.0"
   },
   "repository": "https://github.com/jessetane/terminus",
   "author": "jesse.tane@gmail.com",
