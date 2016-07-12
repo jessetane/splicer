@@ -34,28 +34,22 @@ proxy._ontcpConnection = socket => {
 // ACME CA and storage integration
 var autocert = new Autocert({
   url: 'https://acme-staging.api.letsencrypt.org',
-  email: 'info@simple-machines.io',
+  email: 'info@example.com',
   challenges: proxy.challenges,
   credentials: proxy.credentials,
 })
 
-proxy.SNICallback = (name, cb) => {
-  autocert.certify(name, (err, credential) => {
-    if (err) console.error(`failed to certify ${name}`, err)
-    console.log(`certified ${name}`, credential)
-    cb(err, credential)
-  })
-}
-
 autocert.setChallenge = (key, value, cb) => {
   key = Buffer(key).toString('base64')
-  toRef(`challenges/${key}`).update(value, cb)
+  toRef(`challenges/${key}`).set(value, cb)
 }
 
 autocert.setCredential = (name, credential, cb) => {
   name = Buffer(name).toString('base64')
-  toRef(`credentials/${name}`).update(credential, cb)
+  toRef(`credentials/${name}`).set(credential, cb)
 }
+
+proxy.SNICallback = autocert.certify.bind(autocert)
 
 // storage
 var storage = firebase.initializeApp({
@@ -91,5 +85,5 @@ new Collection({
 
 new Collection({
   storage: toRef('machines'),
-  items: proxy.backends,
+  items: proxy.machines,
 })
