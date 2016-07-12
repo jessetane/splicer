@@ -198,13 +198,11 @@ module.exports = class Terminus extends EventEmitter {
     }).sort((a, b) => {
       return a.usage - b.usage
     })[0]
-    if (machine) {
-      socket.pipe(
-        net.connect(
-          machine.address,
-          app.ports[socket.localPort]
-        )
-      )
+    var backendAddress = machine && machine.address
+    var backendPort = app.ports[socket.localPort]
+    if (backendAddress && backendPort) {
+      var backend = net.connect(backendPort, backendAddress)
+      socket.pipe(backend).pipe(socket)
     } else {
       socket.destroy()
     }
