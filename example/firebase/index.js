@@ -11,7 +11,7 @@ var env = require('./env.json')
 // set up a proxy and some debug logging
 var proxy = new Terminus({
   acmeValidationPort: 8080,
-  shouldTerminateTls: true,
+  shouldTerminateTls: true
 })
 
 proxy.isDomainValidationRequest = req => {
@@ -36,7 +36,7 @@ var autocert = new Autocert({
   url: 'https://acme-staging.api.letsencrypt.org',
   email: 'info@example.com',
   challenges: proxy.challenges,
-  credentials: proxy.credentials,
+  credentials: proxy.credentials
 })
 
 autocert.setChallenge = (key, value, cb) => {
@@ -55,14 +55,14 @@ proxy.setChallenge = autocert.setChallenge
 // storage
 var storage = firebase.initializeApp({
   databaseURL: `https://${env.firebaseAppId}.firebaseio.com`,
-  serviceAccount: env.googleServiceAccount,
+  serviceAccount: env.googleServiceAccount
 })
 
 var toRef = path => storage.database().ref(path)
 
 var apps = new Collection({
   storage: toRef('apps'),
-  items: proxy.apps,
+  items: proxy.apps
 })
 apps.on('change', proxy.onappchange)
 
@@ -86,5 +86,5 @@ new Collection({
 
 new Collection({
   storage: toRef('machines'),
-  items: proxy.machines,
+  items: proxy.machines
 })

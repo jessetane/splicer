@@ -16,7 +16,7 @@ module.exports = class Terminus extends EventEmitter {
       'onappchange',
       '_ontcpConnection',
       '_onhttpRequest',
-      '_ontlsConnection',
+      '_ontlsConnection'
     ].forEach(m => {
       this[m] = this[m].bind(this)
     })
@@ -71,8 +71,8 @@ module.exports = class Terminus extends EventEmitter {
         this.emit('tcpunbind', port)
       }
     }
-    for (var port in newPorts) {
-      var listener = this._tcpListeners[port]
+    for (port in newPorts) {
+      listener = this._tcpListeners[port]
       if (listener) {
         listener.apps++
       } else {
@@ -87,7 +87,7 @@ module.exports = class Terminus extends EventEmitter {
       if (!credential.context) {
         credential.context = new tls.SecureContext({
           key: credential.key,
-          cert: credential.cert,
+          cert: credential.cert
         })
       }
       cb(null, credential.context)
@@ -177,7 +177,7 @@ module.exports = class Terminus extends EventEmitter {
         this.setChallenge(req.url, null)
       } else {
         res.statusCode = 404
-        res.end('not found')  
+        res.end('not found')
       }
     } else {
       res.statusCode = 302
@@ -196,7 +196,6 @@ module.exports = class Terminus extends EventEmitter {
   }
 
   _proxy (socket, app) {
-    var now = Date.now()
     var machine = Object.keys(app.machines).map(id => {
       return this.machines[id]
     }).sort((a, b) => {
