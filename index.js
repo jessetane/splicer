@@ -100,6 +100,10 @@ module.exports = class Terminus extends EventEmitter {
     return false
   }
 
+  setChallenge (key, value) {
+    return false
+  }
+
   _createTcpListener (port) {
     var listener = new net.Server()
     listener.apps = 1

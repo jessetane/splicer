@@ -50,6 +50,7 @@ autocert.setCredential = (name, credential, cb) => {
 }
 
 proxy.SNICallback = autocert.certify.bind(autocert)
+proxy.setChallenge = autocert.setChallenge
 
 // storage
 var storage = firebase.initializeApp({
