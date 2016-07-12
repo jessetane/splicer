@@ -195,8 +195,6 @@ module.exports = class Terminus extends EventEmitter {
     var now = Date.now()
     var machine = Object.keys(app.machines).map(id => {
       return this.machines[id]
-    }).filter(machine => {
-      return now - machine.updated < 30000
     }).sort((a, b) => {
       return a.usage - b.usage
     })[0]
