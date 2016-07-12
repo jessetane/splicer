@@ -1,16 +1,18 @@
 {
   "name": "terminus",
-  "version": "1.0.0",
-  "author": "jesse.tane@gmail.com",
-  "license": "Public domain",
+  "version": "0.0.0",
+  "description": "A TCP proxy",
   "dependencies": {
     "is-tls-client-hello": "^1.0.0",
+    "object-diff": "0.0.3",
     "sni": "^1.0.0"
   },
-  "bin": {
-    "terminus": "cmd.js"
-  },
   "devDependencies": {
-    "tape": "^4.5.1"
-  }
+    "autocert": "^2.0.0",
+    "firebase": "^3.1.0",
+    "realtime-collection": "github:jessetane/realtime-collection#1.0.1"
+  },
+  "repository": "https://github.com/jessetane/terminus",
+  "author": "jesse.tane@gmail.com",
+  "license": "MIT"
 }
