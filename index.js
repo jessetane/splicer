@@ -38,7 +38,7 @@ module.exports = class Terminus extends EventEmitter {
       this._tlsServer = new tls.Server({
         SNICallback: (name, cb) => this.SNICallback(name, cb)
       })
-      this._tlsServer.on('connection', this._ontlsConnection)
+      this._tlsServer.on('secureConnection', this._ontlsConnection)
     }
 
     // outward facing tcp listeners
@@ -135,7 +135,7 @@ module.exports = class Terminus extends EventEmitter {
       }
       var app = this._appByName(name)
       if (app) {
-        socket.appName = name
+        socket.servername = name
         socket.unshift(data)
         if (wasHttp) {
           if (app.tls) {
@@ -177,13 +177,13 @@ module.exports = class Terminus extends EventEmitter {
       }
     } else {
       res.statusCode = 302
-      res.setHeader('location', `https://${res.socket.appName}${req.url}`)
+      res.setHeader('location', `https://${res.socket.servername}${req.url}`)
       res.end()
     }
   }
 
   _ontlsConnection (socket) {
-    var app = this._appByName(socket.appName)
+    var app = this._appByName(socket.servername)
     if (app) {
       this._proxy(socket, app)
     } else {
