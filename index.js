@@ -42,9 +42,10 @@ module.exports = class Terminus extends EventEmitter {
     }
 
     // outward facing tcp listeners
+    this.acmeValidationPort = opts.acmeValidationPort || '80'
     this._tcpListeners = {
       // we always listen on 80 for potential domain validation challenges from our CA
-      80: this._createTcpListener(opts.acmeValidationPort || 80)
+      [this.acmeValidationPort]: this._createTcpListener(this.acmeValidationPort)
     }
   }
 
