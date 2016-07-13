@@ -106,6 +106,12 @@ module.exports = class Terminus extends EventEmitter {
     return false
   }
 
+  _appByName (name) {
+    name = this.names[name]
+    var appId = name && name.appId
+    return appId && this.apps[appId]
+  }
+
   _createTcpListener (port) {
     var listener = new net.Server()
     listener.apps = 1
@@ -115,11 +121,6 @@ module.exports = class Terminus extends EventEmitter {
       this.emit('tcpbind', port)
     })
     return listener
-  }
-
-  _appByName (name) {
-    var appId = this.names[name]
-    return appId && this.apps[appId]
   }
 
   _ontcpConnection (socket) {
