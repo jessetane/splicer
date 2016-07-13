@@ -45,7 +45,7 @@ autocert.setChallenge = (key, value, cb) => {
 }
 
 autocert.setCredential = (name, credential, cb) => {
-  name = Buffer(name).toString('base64')
+  name = name.replace(/\./g, '%')
   toRef(`credentials/${name}`).set(credential, cb)
 }
 
@@ -69,7 +69,7 @@ apps.on('change', proxy.onappchange)
 new Collection({
   storage: toRef('names'),
   items: proxy.names,
-  parseKey: key => Buffer(key, 'base64').toString()
+  parseKey: key => key.replace(/%/g, '.')
 })
 
 new Collection({
@@ -81,7 +81,7 @@ new Collection({
 new Collection({
   storage: toRef('credentials'),
   items: proxy.credentials,
-  parseKey: key => Buffer(key, 'base64').toString()
+  parseKey: key => key.replace(/%/g, '.')
 })
 
 new Collection({
