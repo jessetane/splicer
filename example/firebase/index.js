@@ -14,8 +14,8 @@ var proxy = new Terminus({
   shouldTerminateTls: true
 })
 
-proxy.isDomainValidationRequest = req => {
-  return /^\/\.well-known\/acme-challenge/.test(req.url)
+proxy.isDomainValidationRequest = pathname => {
+  return /^\/\.well-known\/acme-challenge/.test(pathname)
 }
 
 proxy.on('tcpbind', port => {
