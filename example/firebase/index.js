@@ -26,10 +26,9 @@ proxy.on('tcpunbind', port => {
   console.log(`stopped listening on ${port}`)
 })
 
-proxy._ontcpConnection = socket => {
-  console.log(`tcp connection accepted on ${socket.localPort} from ${socket.remoteAddress}`)
-  Terminus.prototype._ontcpConnection.call(proxy, socket)
-}
+proxy.on('connection', socket => {
+  console.log(`tcp connection on ${socket.localPort} from ${socket.remoteAddress}`)
+})
 
 // ACME CA and storage integration
 var autocert = new Autocert({

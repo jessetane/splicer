@@ -121,6 +121,7 @@ module.exports = class Terminus extends EventEmitter {
   }
 
   _ontcpConnection (socket) {
+    this.emit('connection', socket)
     socket.once('readable', () => {
       var data = socket.read()
       var wasTls = isTls(data)
