@@ -216,7 +216,7 @@ module.exports = class Terminus extends EventEmitter {
     if (app) {
       if (app.cname && app.cname !== socket.servername) {
         socket.once('readable', () => {
-          var data = socket.read()
+          var data = socket.read() || new Buffer(0)
           var httpHeaders = this._parseHttp(data)
           if (httpHeaders) {
             var port = httpHeaders.port ? `:${httpHeaders.port}` : ''
