@@ -178,6 +178,10 @@ module.exports = class Terminus extends EventEmitter {
         } else if (httpHeaders) {
           if (app.tls) {
             this._httpServer.emit('connection', socket)
+          } else if (app.cname && app.cname !== socket.servername) {
+            var port = httpHeaders.port ? `:${httpHeaders.port}` : ''
+            var pathname = httpHeaders.pathname
+            socket.end(`HTTP/1.1 302 Found\r\nLocation: http://${app.cname}${port}${pathname}\r\n\r\n`)
           } else {
             this._proxy(socket, app)
           }
@@ -210,7 +214,22 @@ module.exports = class Terminus extends EventEmitter {
   _ontlsConnection (socket) {
     var app = this._appByName(socket.servername)
     if (app) {
-      this._proxy(socket, app)
+      if (app.cname && app.cname !== socket.servername) {
+        socket.once('readable', () => {
+          var data = socket.read()
+          var httpHeaders = this._parseHttp(data)
+          if (httpHeaders) {
+            var port = httpHeaders.port ? `:${httpHeaders.port}` : ''
+            var pathname = httpHeaders.pathname
+            socket.end(`HTTP/1.1 302 Found\r\nLocation: https://${app.cname}${port}${pathname}\r\n\r\n`)
+          } else {
+            socket.unshift(data)
+            this._proxy(socket, app)
+          }
+        })
+      } else {
+        this._proxy(socket, app)
+      }
     } else {
       socket.destroy()
     }
