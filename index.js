@@ -106,6 +106,10 @@ module.exports = class Terminus extends EventEmitter {
     return false
   }
 
+  balanceLoad (socket, app) {
+    return this.machines[Object.keys(app.machines)[0]]
+  }
+
   _appByName (name) {
     name = this.names[name]
     var appId = name && name.appId
@@ -200,11 +204,7 @@ module.exports = class Terminus extends EventEmitter {
   }
 
   _proxy (socket, app) {
-    var machine = Object.keys(app.machines).map(id => {
-      return this.machines[id]
-    }).sort((a, b) => {
-      return a.usage - b.usage
-    })[0]
+    var machine = this.balanceLoad(socket, app)
     var backendAddress = machine && machine.address
     var backendPort = app.ports[socket.localPort]
     if (backendAddress && backendPort) {
