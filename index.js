@@ -146,7 +146,7 @@ module.exports = class Terminus extends EventEmitter {
   _ontcpConnection (socket) {
     this.emit('connection', socket)
     socket.once('readable', () => {
-      var data = socket.read()
+      var data = socket.read() || new Buffer(0)
       var wasTls = isTls(data)
       var httpHeaders = null
       var name = null
@@ -241,9 +241,13 @@ module.exports = class Terminus extends EventEmitter {
     var backendPort = app.ports[socket.localPort]
     if (backendAddress && backendPort) {
       var backend = net.connect(backendPort, backendAddress)
+      backend.on('error', noop)
+      socket.on('error', noop)
       socket.pipe(backend).pipe(socket)
     } else {
       socket.destroy()
     }
   }
 }
+
+function noop () {}
