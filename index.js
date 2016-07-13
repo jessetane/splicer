@@ -206,7 +206,7 @@ module.exports = class Terminus extends EventEmitter {
       }
     } else {
       res.statusCode = 302
-      res.setHeader('location', `https://${req.socket.servername}${req.url}`)
+      res.setHeader('location', `https://${req.headers.host}${req.url}`)
       res.end()
     }
   }
