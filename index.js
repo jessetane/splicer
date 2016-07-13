@@ -12,12 +12,14 @@ module.exports = class Terminus extends EventEmitter {
   constructor (opts = {}) {
     super()
 
-    ;[
+    // how did es6 classes not get a syntax for this?
+    var toBind = [
       'onappchange',
       '_ontcpConnection',
       '_onhttpRequest',
       '_ontlsConnection'
-    ].forEach(m => {
+    ]
+    toBind.forEach(m => {
       this[m] = this[m].bind(this)
     })
 

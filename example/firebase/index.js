@@ -54,7 +54,7 @@ proxy.setChallenge = autocert.setChallenge
 // storage
 var storage = firebase.initializeApp({
   databaseURL: `https://${env.firebaseAppId}.firebaseio.com`,
-  serviceAccount: env.googleServiceAccount
+  serviceAccount: env.firebaseServiceAccount
 })
 
 var toRef = path => storage.database().ref(path)
