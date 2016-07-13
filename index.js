@@ -5,8 +5,8 @@ var http = require('http')
 var diff = require('object-diff')
 var isTls = require('is-tls-client-hello')
 var extractSni = require('sni')
-var isHttp = /[^\r\n]*HTTP\/1\.1[\r\n]/
-var extractHostHeader = /[\r\n]host: ([^:\r\n ]+)/i
+var isHttp = / HTTP\/1\.1$/
+var extractHostHeader = /\r\nhost: (.+?)(?:\r|$)/i
 
 module.exports = class Terminus extends EventEmitter {
   constructor (opts = {}) {
@@ -116,6 +116,22 @@ module.exports = class Terminus extends EventEmitter {
     return appId && this.apps[appId]
   }
 
+  _parseHttp (packet) {
+    packet = packet.toString('ascii')
+    var endOfFirstLine = packet.indexOf('\r\n')
+    var firstLine = packet.slice(0, endOfFirstLine)
+    if (isHttp.test(firstLine)) {
+      var headers = packet.slice(0, packet.indexOf('\r\n\r\n'))
+      var host = extractHostHeader.exec(headers)
+      host = host ? host[1].split(':') : []
+      return {
+        pathname: firstLine.split(' ')[1],
+        hostname: host[0],
+        port: host[1]
+      }
+    }
+  }
+
   _createTcpListener (port) {
     var listener = new net.Server()
     listener.apps = 1
@@ -132,30 +148,21 @@ module.exports = class Terminus extends EventEmitter {
     socket.once('readable', () => {
       var data = socket.read()
       var wasTls = isTls(data)
-      var wasHttp = false
-      var first1024 = null
+      var httpHeaders = null
       var name = null
       if (wasTls) {
         name = extractSni(data)
       } else {
-        first1024 = data.toString('ascii', 0, 1024)
-        if (isHttp.test(first1024)) {
-          wasHttp = true
-          name = extractHostHeader.exec(first1024)
-          name = name && name[1]
+        httpHeaders = this._parseHttp(data)
+        if (httpHeaders) {
+          name = httpHeaders.hostname
         }
       }
       var app = this._appByName(name)
       if (app) {
         socket.servername = name
         socket.unshift(data)
-        if (wasHttp) {
-          if (app.tls) {
-            this._httpServer.emit('connection', socket)
-          } else {
-            this._proxy(socket, app)
-          }
-        } else if (wasTls) {
+        if (wasTls) {
           if (app.tls) {
             if (this.shouldTerminateTls) {
               this._tlsServer.emit('connection', socket)
@@ -165,6 +172,12 @@ module.exports = class Terminus extends EventEmitter {
                 this._proxy(socket, app)
               })
             }
+          } else {
+            this._proxy(socket, app)
+          }
+        } else if (httpHeaders) {
+          if (app.tls) {
+            this._httpServer.emit('connection', socket)
           } else {
             this._proxy(socket, app)
           }
