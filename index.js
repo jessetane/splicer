@@ -167,8 +167,26 @@ module.exports = class Terminus extends EventEmitter {
   }
 
   _appByName (name) {
-    name = this.names[name]
-    var appId = name && name.appId
+    var record = this.names[name]
+    if (!record) {
+      var nameParts = null
+      for (var key in this.names) {
+        var candidate = this.names[key]
+        if (candidate.wild) {
+          nameParts = nameParts || name.split('.')
+          var keyParts = key.split('.')
+          if (keyParts.length === nameParts.length) {
+            if (keyParts
+              .map((part, i) => part === '*' ? nameParts[i] : keyParts[i])
+              .join('.') === name) {
+              record = candidate
+              break
+            }
+          }
+        }
+      }
+    }
+    var appId = record && record.appId
     return appId && this.apps[appId]
   }
 
