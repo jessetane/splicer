@@ -84,7 +84,7 @@ module.exports = class Terminus extends EventEmitter {
     var credential = this.credentials[name]
     if (credential) {
       if (!credential.context) {
-        credential.context = new tls.SecureContext({
+        credential.context = tls.createSecureContext({
           key: credential.key,
           cert: credential.cert
         })
