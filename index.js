@@ -167,6 +167,7 @@ module.exports = class Terminus extends EventEmitter {
   }
 
   _appByName (name) {
+    if (!name) return
     var record = this.names[name]
     if (!record) {
       var nameParts = null
