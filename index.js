@@ -233,6 +233,7 @@ module.exports = class Terminus extends EventEmitter {
   _onsecureConnection (socket) {
     var app = this._appByName(socket.servername)
     if (app) {
+      socket.on('error', noop)
       if (app.cname && app.cname !== socket.servername) {
         socket.once('readable', () => {
           var data = socket.read() || new Buffer(0)
