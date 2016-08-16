@@ -215,10 +215,10 @@ module.exports = class Terminus extends EventEmitter {
       if (this.isDomainValidationRequest(pathname)) {
         var proof = this.challenges[pathname]
         if (proof) {
-          socket.end(`HTTP/1.1 200 OK\r\n\r\n${proof}`)
+          socketEnd(socket, `HTTP/1.1 200 OK\r\n\r\n${proof}`)
           this.setChallenge(pathname, null)
         } else {
-          socket.end('HTTP/1.1 404 Not Found\r\n\r\nnot found')
+          socketEnd(socket, 'HTTP/1.1 404 Not Found\r\n\r\nnot found')
         }
       } else {
         this._redirectHttp(socket, headers, app)
@@ -257,7 +257,7 @@ module.exports = class Terminus extends EventEmitter {
     var hostname = app.cname || headers.hostname
     var port = headers.port ? `:${headers.port}` : ''
     var pathname = headers.pathname
-    socket.end(`HTTP/1.1 302 Found\r\nLocation: ${protocol}://${hostname}${port}${pathname}\r\n\r\n`)
+    socketEnd(socket, `HTTP/1.1 302 Found\r\nLocation: ${protocol}://${hostname}${port}${pathname}\r\n\r\n`)
   }
 
   _proxy (socket, app) {
@@ -272,6 +272,11 @@ module.exports = class Terminus extends EventEmitter {
       socket.destroy()
     }
   }
+}
+
+function socketEnd (socket, data) {
+  socket.end(data)
+  socket.setTimeout(5000, () => socket.destroy())
 }
 
 function noop () {}
