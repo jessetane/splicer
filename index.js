@@ -1,7 +1,6 @@
 var EventEmitter = require('events')
 var net = require('net')
 var tls = require('tls')
-var http = require('http')
 var diff = require('object-diff')
 var isTls = require('is-tls-client-hello')
 var extractSni = require('sni')
