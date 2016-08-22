@@ -28,6 +28,9 @@ module.exports = class Terminus extends EventEmitter {
     this.challenges = {}
     this.machines = {}
 
+    // timeout inactive connections after 1m
+    this.timeout = opts.timeout !== undefined ? opts.timeout : 60000
+
     // outward facing tcp listeners
     this._tcpListeners = {}
 
@@ -119,6 +122,7 @@ module.exports = class Terminus extends EventEmitter {
 
   _ontcpConnection (socket) {
     this.emit('connection', socket)
+    socket.setTimeout(this.timeout)
     socket.on('error', noop)
     socket.once('readable', () => {
       var data = socket.read() || new Buffer(0)
