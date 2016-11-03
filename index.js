@@ -139,7 +139,7 @@ module.exports = class Terminus extends EventEmitter {
         }
       }
       var app = this._appByName(name)
-      if (app) {
+      if (app && app.ports && app.machines) {
         socket.servername = name
         socket.unshift(data)
         if (wasTls) {
