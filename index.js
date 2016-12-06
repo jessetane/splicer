@@ -6,7 +6,6 @@ var isTls = require('is-tls-client-hello')
 var extractSni = require('sni')
 var isHttp = / HTTP\/1\.1$/
 var extractHostHeader = /\r\nhost: (.+?)(?:\r|$)/i
-var extractUserAgent = /\r\nuser-agent: (.+?)(?:\r|$)/i
 
 module.exports = class Terminus extends EventEmitter {
   constructor (opts = {}) {
