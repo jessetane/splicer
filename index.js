@@ -6,12 +6,13 @@ var isTls = require('is-tls-client-hello')
 var extractSni = require('sni')
 var isHttp = / HTTP\/1\.1$/
 var extractHostHeader = /\r\nhost: (.+?)(?:\r|$)/i
+var extractUserAgent = /\r\nuser-agent: (.+?)(?:\r|$)/i
 
 module.exports = class Terminus extends EventEmitter {
   constructor (opts = {}) {
     super()
 
-    // how did es6 classes not get a syntax for this?
+    // how did es6 classes not get syntax for this?
     var toBind = [
       'onappchange',
       '_ontcpConnection',
