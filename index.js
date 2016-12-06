@@ -123,8 +123,8 @@ module.exports = class Terminus extends EventEmitter {
 
   _ontcpConnection (socket) {
     this.emit('connection', socket)
-    socket.setTimeout(this.timeout)
-    socket.setNoDelay()
+    socket.setTimeout(this.timeout, () => socket.destroy())
+    socket.setNoDelay(true)
     socket.on('error', noop)
     socket.once('readable', () => {
       var data = socket.read() || new Buffer(0)
