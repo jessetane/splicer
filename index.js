@@ -179,9 +179,12 @@ module.exports = class Terminus extends EventEmitter {
           var value = line.slice(mid + 1)
           headers[name.trim().toLowerCase()] = value.trim()
         })
+      var firstLineParts = firstLine.split(' ')
       var host = headers.host
       host = host ? host.split(':') : []
-      meta.pathname = firstLine.split(' ')[1]
+      meta.method = firstLineParts[0]
+      meta.pathname = firstLineParts[1]
+      meta.protocol = firstLineParts[2]
       meta.hostname = host[0]
       meta.port = host[1]
       meta.headers = headers
@@ -321,9 +324,10 @@ module.exports = class Terminus extends EventEmitter {
   }
 
   _reconstructHttp (httpMeta) {
-    var header = `${httpMeta.firstLine}\r\n`
-    for (var name in httpMeta.headers) {
-      header += `${name}: ${httpMeta.headers[name]}\r\n`
+    var { method, pathname, protocol, headers } = httpMeta
+    var header = `${method} ${pathname} ${protocol}\r\n`
+    for (var name in headers) {
+      header += `${name}: ${headers[name]}\r\n`
     }
     header += '\r\n'
     return Buffer.concat([
