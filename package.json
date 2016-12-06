@@ -1,6 +1,6 @@
 {
   "name": "terminus",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A TCP proxy",
   "dependencies": {
     "is-tls-client-hello": "^1.0.0",
