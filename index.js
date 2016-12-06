@@ -5,7 +5,6 @@ var diff = require('object-diff')
 var isTls = require('is-tls-client-hello')
 var extractSni = require('sni')
 var isHttp = / HTTP\/1\.1$/
-var extractHostHeader = /\r\nhost: (.+?)(?:\r|$)/i
 
 module.exports = class Terminus extends EventEmitter {
   constructor (opts = {}) {
@@ -128,24 +127,24 @@ module.exports = class Terminus extends EventEmitter {
     socket.once('readable', () => {
       var data = socket.read() || new Buffer(0)
       var wasTls = isTls(data)
-      var httpHeaders = null
+      var httpMeta = null
       var name = null
       if (wasTls) {
         name = extractSni(data)
       } else {
-        httpHeaders = this._parseHttp(data)
-        if (httpHeaders) {
-          name = httpHeaders.hostname
+        httpMeta = this._parseHttp(data)
+        if (httpMeta) {
+          name = httpMeta.hostname
         }
       }
       var app = this._appByName(name)
       if (app && app.ports && app.machines) {
-        socket.servername = name
-        socket.unshift(data)
         if (wasTls) {
+          socket.app = app
+          socket.unshift(data)
           this._ontlsConnection(socket, app)
-        } else if (httpHeaders) {
-          this._onhttpConnection(socket, httpHeaders, app)
+        } else if (httpMeta) {
+          this._onhttpConnection(socket, httpMeta, app)
         } else {
           socket.destroy()
         }
@@ -155,19 +154,39 @@ module.exports = class Terminus extends EventEmitter {
     })
   }
 
-  _parseHttp (packet) {
-    packet = packet.toString('ascii')
-    var endOfFirstLine = packet.indexOf('\r\n')
-    var firstLine = packet.slice(0, endOfFirstLine)
+  _parseHttp (data) {
+    var string = data.toString('ascii')
+    var endOfFirstLine = string.indexOf('\r\n')
+    var firstLine = string.slice(0, endOfFirstLine)
     if (isHttp.test(firstLine)) {
-      var headers = packet.slice(0, packet.indexOf('\r\n\r\n'))
-      var host = extractHostHeader.exec(headers)
-      host = host ? host[1].split(':') : []
-      return {
-        pathname: firstLine.split(' ')[1],
-        hostname: host[0],
-        port: host[1]
+      var endOfHeaders = string.indexOf('\r\n\r\n')
+      if (endOfHeaders === -1) {
+        console.error('HTTP request received but headers did not fit in first packet')
+        return
       }
+      var meta = {
+        firstLine,
+        requestBody: data.slice(endOfHeaders + 4)
+      }
+      var headers = {}
+      string
+        .slice(endOfFirstLine + 2, endOfHeaders)
+        .split('\r\n')
+        .forEach(line => {
+          var mid = line.indexOf(':')
+          if (mid === -1) return
+          var name = line.slice(0, mid)
+          var value = line.slice(mid + 1)
+          headers[name.trim().toLowerCase()] = value.trim()
+        })
+      var host = headers.host
+      host = host ? host.split(':') : []
+      meta.pathname = firstLine.split(' ')[1]
+      meta.hostname = host[0]
+      meta.port = host[1]
+      meta.headers = headers
+      meta.raw = data
+      return meta
     }
   }
 
@@ -213,9 +232,9 @@ module.exports = class Terminus extends EventEmitter {
     }
   }
 
-  _onhttpConnection (socket, headers, app) {
+  _onhttpConnection (socket, httpMeta, app) {
     if (app.tls) {
-      var pathname = headers.pathname
+      var pathname = httpMeta.pathname
       if (this.isDomainValidationRequest(pathname)) {
         var proof = this.challenges[pathname]
         if (proof) {
@@ -225,44 +244,92 @@ module.exports = class Terminus extends EventEmitter {
           socket.end('HTTP/1.1 404 Not Found\r\n\r\nnot found')
         }
       } else {
-        this._redirectHttp(socket, headers, app)
+        this._redirectHttp(socket, httpMeta, app)
       }
-    } else if (app.cname && app.cname !== headers.hostname) {
-      this._redirectHttp(socket, headers, app)
     } else {
+      var http = app.http
+      if (http) {
+        if (http.cname && http.cname !== httpMeta.hostname) {
+          this._redirectHttp(socket, httpMeta, app)
+          return
+        }
+        if (http.pre) {
+          app = this._preprocessHttp(app, httpMeta)
+          socket.unshift(this._reconstructHttp(httpMeta))
+        } else {
+          socket.unshift(httpMeta.raw)
+        }
+      } else {
+        socket.unshift(httpMeta.raw)
+      }
       this._proxy(socket, app)
     }
   }
 
   _onsecureConnection (socket) {
-    var app = this._appByName(socket.servername)
-    if (app) {
-      socket.on('error', noop)
-      if (app.cname && app.cname !== socket.servername) {
-        socket.once('readable', () => {
-          var data = socket.read() || new Buffer(0)
-          var httpHeaders = this._parseHttp(data)
-          if (httpHeaders) {
-            this._redirectHttp(socket, httpHeaders, app)
-          } else {
-            socket.unshift(data)
-            this._proxy(socket, app)
-          }
-        })
-      } else {
-        this._proxy(socket, app)
-      }
-    } else {
-      socket.destroy()
+    var app = socket._handle._parentWrap.app // this will probably break
+    socket.setTimeout(this.timeout, () => socket.destroy())
+    socket.setNoDelay(true)
+    socket.on('error', noop)
+    var http = app.http
+    if (!http) {
+      this._proxy(socket, app)
+      return
     }
+    socket.once('readable', () => {
+      var data = socket.read() || new Buffer(0)
+      var httpMeta = this._parseHttp(data)
+      if (!httpMeta) {
+        socket.destroy()
+        return
+      }
+      if (http.cname && http.cname !== socket.servername) {
+        this._redirectHttp(socket, httpMeta, app)
+        return
+      }
+      if (http.pre) {
+        app = this._preprocessHttp(app, httpMeta)
+        socket.unshift(this._reconstructHttp(httpMeta))
+      } else {
+        socket.unshift(data)
+      }
+      this._proxy(socket, app)
+    })
   }
 
-  _redirectHttp (socket, headers, app) {
+  _redirectHttp (socket, httpMeta, app) {
     var protocol = app.tls ? 'https' : 'http'
-    var hostname = app.cname || headers.hostname
-    var port = headers.port ? `:${headers.port}` : ''
-    var pathname = headers.pathname
+    var hostname = app.http && app.http.cname || httpMeta.hostname
+    var port = httpMeta.port ? `:${httpMeta.port}` : ''
+    var pathname = httpMeta.pathname
     socket.end(`HTTP/1.1 302 Found\r\nLocation: ${protocol}://${hostname}${port}${pathname}\r\n\r\n`)
+  }
+
+  _preprocessHttp (app, httpMeta) {
+    var pre = app.http.pre
+    if (typeof pre === 'string') {
+      pre = app.http.pre = (new Function(pre))()
+    }
+    var redirect = pre(httpMeta)
+    if (typeof redirect === 'string') {
+      var otherApp = this.apps[redirect]
+      if (otherApp && otherApp.ports && otherApp.machines) {
+        app = otherApp
+      }
+    }
+    return app
+  }
+
+  _reconstructHttp (httpMeta) {
+    var header = `${httpMeta.firstLine}\r\n`
+    for (var name in httpMeta.headers) {
+      header += `${name}: ${httpMeta.headers[name]}\r\n`
+    }
+    header += '\r\n'
+    return Buffer.concat([
+      new Buffer(header, 'ascii'),
+      httpMeta.requestBody
+    ])
   }
 
   _proxy (socket, app) {
