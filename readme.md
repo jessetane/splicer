@@ -2,7 +2,7 @@
 A TCP proxy with useful TLS and HTTP features suitable for vhosting and load balancing.
 
 ## Why
-I can never get nginx to do what I want. Also wanted easy [ACME](https://github.com/ietf-wg-acme/acme/) integration, pre & post rules for HTTP (in plain JavaScript!) and websockets that just work by default.
+I can never get nginx to do what I want. Also wanted easy [ACME](https://github.com/ietf-wg-acme/acme/) integration, pre & post rules for HTTP (in plain JavaScript!) and websockets that just work.
 
 ## How
 node.js' built in TCP, TLS and HTTP servers.
