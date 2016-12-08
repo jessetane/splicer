@@ -34,14 +34,14 @@ proxy.on('connection', socket => {
 
 // tell the proxy about dns names, upstream apps and machines
 proxy.names = {
-  'www.secure-tcp.localhost': {
-    appId: 'secureHTTP'
-  },
-  'secure-tcp.localhost': {
+  'www.secure-http.localhost': {
     appId: 'secureHTTP'
   },
   'secure-http.localhost': {
-    appId: 'HTTP'
+    appId: 'secureHTTP'
+  },
+  'secure-tcp.localhost': {
+    appId: 'secureTCP'
   },
   'insecure-http.localhost': {
     appId: 'insecureHTTP'
