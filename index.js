@@ -53,6 +53,7 @@ module.exports = class Terminus extends EventEmitter {
     // http server
     this._httpServer = new http.Server()
     this._httpServer.on('request', this._onhttpRequest)
+    this._httpServer.on('upgrade', this._onhttpRequest)
     this._httpAgent = new http.Agent({
       keepAlive: true,
       keepAliveMsecs: this.timeout
@@ -60,8 +61,8 @@ module.exports = class Terminus extends EventEmitter {
   }
 
   close () {
-    this._httpServer.close()
     this._tlsServer.close()
+    this._httpServer.close()
     for (var port in this._tcpListeners) {
       this._tcpListeners[port].close()
     }
@@ -248,7 +249,7 @@ module.exports = class Terminus extends EventEmitter {
       if (typeof pre === 'string') {
         pre = app.http.pre = (new Function(pre))()
       }
-      var redirect = pre(req)
+      var redirect = pre(req, app)
       if (typeof redirect === 'string') {
         dest = this.apps[redirect]
       }
@@ -269,34 +270,48 @@ module.exports = class Terminus extends EventEmitter {
       }
     }
     var iface = (upstream.protocol === 'https:' ? https : http)
-    var uReq = iface.request({
+    var opts = {
       protocol: upstream.protocol,
       hostname: upstream.hostname,
       port: upstreamPort,
       path: req.url,
       agent: this._httpAgent,
       headers: req.headers
-    })
+    }
+    var uReq = iface.request(opts)
     uReq.on('error', err => {
       res.statusCode = 503
       res.end('service unavailable')
     })
-    uReq.on('response', uRes => {
+    uReq.on('response', onresponse)
+    uReq.on('upgrade', onresponse)
+    req.pipe(uReq)
+    function onresponse (uRes, uSocket) {
       var post = app.http.post
       if (post) {
         if (typeof post === 'string') {
           post = app.http.post = (new Function(post))()
         }
-        post(uRes)
+        post(uRes, app)
       }
-      res.writeHead(
-        uRes.statusCode,
-        uRes.statusMessage,
-        uRes.headers
-      )
-      uRes.pipe(res)
-    })
-    req.pipe(uReq)
+      var connection = uRes.headers.connection
+      if (connection && connection.toLowerCase() === 'upgrade') {
+        var headers = ''
+        for (var name in uRes.headers) {
+          headers += `${name}: ${uRes.headers[name]}\r\n`
+        }
+        var head = `HTTP/1.1 ${uRes.statusCode} ${uRes.statusMessage}\r\n${headers}\r\n`
+        res.write(head)
+        uSocket.pipe(res).pipe(uSocket)
+      } else {
+        res.writeHead(
+          uRes.statusCode,
+          uRes.statusMessage,
+          uRes.headers
+        )
+        uRes.pipe(res)
+      }
+    }
   }
 
   _appByName (name) {
