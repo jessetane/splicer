@@ -10,8 +10,7 @@ var env = require('./env.json')
 
 // set up a proxy and some debug logging
 var proxy = new Terminus({
-  acmeValidationPort: 8080,
-  shouldTerminateTls: true
+  acmeValidationPort: 80,
 })
 
 proxy.isDomainValidationRequest = pathname => {
