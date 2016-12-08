@@ -1,10 +1,14 @@
 var EventEmitter = require('events')
 var net = require('net')
 var tls = require('tls')
+var http = require('http')
+var https = require('https')
+var url = require('url')
 var diff = require('object-diff')
 var isTls = require('is-tls-client-hello')
 var extractSni = require('sni')
-var isHttp = / HTTP\/1\.1$/
+var isHttp = /^[^ ]+ [^ ]+ HTTP\/1\.1$/m
+var extractHostHeader = /\r\nhost: (.+?)(?:\r|$)/i
 
 module.exports = class Terminus extends EventEmitter {
   constructor (opts = {}) {
@@ -14,7 +18,8 @@ module.exports = class Terminus extends EventEmitter {
     var toBind = [
       'onappchange',
       '_ontcpConnection',
-      '_onsecureConnection'
+      '_ontlsConnectionSecure',
+      '_onhttpRequest'
     ]
     toBind.forEach(m => {
       this[m] = this[m].bind(this)
@@ -39,14 +44,19 @@ module.exports = class Terminus extends EventEmitter {
       this._tcpListeners[this.acmeValidationPort] = this._createTcpListener(this.acmeValidationPort)
     }
 
-    // tls terminator if necessary
-    this.shouldTerminateTls = opts.shouldTerminateTls
-    if (this.shouldTerminateTls) {
-      this._tlsServer = new tls.Server({
-        SNICallback: (name, cb) => this.SNICallback(name, cb)
-      })
-      this._tlsServer.on('secureConnection', this._onsecureConnection)
-    }
+    // tls terminator
+    this._tlsServer = new tls.Server({
+      SNICallback: (name, cb) => this.SNICallback(name, cb)
+    })
+    this._tlsServer.on('secureConnection', this._ontlsConnectionSecure)
+
+    // http server
+    this._httpServer = new http.Server()
+    this._httpServer.on('request', this._onhttpRequest)
+    this._httpAgent = new http.Agent({
+      keepAlive: true,
+      keepAliveMsecs: this.timeout
+    })
   }
 
   close () {
@@ -54,6 +64,15 @@ module.exports = class Terminus extends EventEmitter {
     this._tlsServer.close()
     for (var port in this._tcpListeners) {
       this._tcpListeners[port].close()
+    }
+  }
+
+  reload () {
+    for (var id in this.apps) {
+      this.onappchange({ oldData: this.apps[id] })
+    }
+    for (id in this.apps) {
+      this.onappchange({ newData: this.apps[id] })
     }
   }
 
@@ -104,7 +123,7 @@ module.exports = class Terminus extends EventEmitter {
     return false
   }
 
-  balanceLoad (socket, app) {
+  balanceLoad (app) {
     return this.machines[Object.keys(app.machines)[0]]
   }
 
@@ -121,76 +140,163 @@ module.exports = class Terminus extends EventEmitter {
 
   _ontcpConnection (socket) {
     this.emit('connection', socket)
-    socket.setTimeout(this.timeout, () => socket.destroy())
-    socket.setNoDelay(true)
-    socket.on('error', noop)
+    socket.setTimeout(this.timeout, () => {
+      console.log('TIMEOUT')
+      socket.destroy()
+    })
     socket.once('readable', () => {
-      var data = socket.read() || new Buffer(0)
-      var wasTls = isTls(data)
-      var httpMeta = null
-      var name = null
-      if (wasTls) {
-        name = extractSni(data)
+      var firstPacket = socket.read() || new Buffer(0)
+      if (isTls(firstPacket)) {
+        this._ontlsConnection(socket, firstPacket)
       } else {
-        httpMeta = this._parseHttp(data)
-        if (httpMeta) {
-          name = httpMeta.hostname
-        }
-      }
-      var app = this._appByName(name)
-      if (app && app.ports && app.machines) {
-        if (wasTls) {
-          socket.app = app
-          socket.unshift(data)
-          this._ontlsConnection(socket, app)
-        } else if (httpMeta) {
-          this._onhttpConnection(socket, httpMeta, app)
+        var headers = firstPacket.toString('ascii')
+        if (isHttp.test(headers)) {
+          this._onhttpConnection(socket, firstPacket, headers)
         } else {
+          // other tcp protocols with "name" data in header?
           socket.destroy()
         }
-      } else {
-        socket.destroy()
       }
     })
   }
 
-  _parseHttp (data) {
-    var string = data.toString('ascii')
-    var endOfFirstLine = string.indexOf('\r\n')
-    var firstLine = string.slice(0, endOfFirstLine)
-    if (isHttp.test(firstLine)) {
-      var endOfHeaders = string.indexOf('\r\n\r\n')
-      if (endOfHeaders === -1) {
-        console.error('HTTP request received but headers did not fit in first packet')
-        return
-      }
-      var meta = {
-        firstLine,
-        requestBody: data.slice(endOfHeaders + 4)
-      }
-      var headers = {}
-      string
-        .slice(endOfFirstLine + 2, endOfHeaders)
-        .split('\r\n')
-        .forEach(line => {
-          var mid = line.indexOf(':')
-          if (mid === -1) return
-          var name = line.slice(0, mid)
-          var value = line.slice(mid + 1)
-          headers[name.trim().toLowerCase()] = value.trim()
-        })
-      var firstLineParts = firstLine.split(' ')
-      var host = headers.host
-      host = host ? host.split(':') : []
-      meta.method = firstLineParts[0]
-      meta.pathname = firstLineParts[1]
-      meta.protocol = firstLineParts[2]
-      meta.hostname = host[0]
-      meta.port = host[1]
-      meta.headers = headers
-      meta.raw = data
-      return meta
+  _ontlsConnection (socket, firstPacket) {
+    var name = extractSni(firstPacket)
+    var app = this._appByName(name)
+    if (!app || !app.machines || !app.ports) {
+      socket.destroy()
+      return
     }
+    socket.app = app
+    socket.unshift(firstPacket)
+    if (app.tls) {
+      this._tlsServer.emit('connection', socket)
+    } else {
+      this._proxy(socket)
+    }
+  }
+
+  _onhttpConnection (socket, firstPacket, headers) {
+    var host = extractHostHeader.exec(headers)
+    var name = host && host[1].split(':')[0]
+    var app = this._appByName(name)
+    if (!app || !app.machines || !app.ports) {
+      socket.end('HTTP/1.1 404 Not Found\r\n\r\nnot found')
+      return
+    }
+    if (app.tls) {
+      this._checkDomainValidation(socket, headers, host[1])
+      return
+    }
+    socket.app = app
+    socket.unshift(firstPacket)
+    if (app.http) {
+      this._httpServer.emit('connection', socket)
+    } else {
+      this._proxy(socket)
+    }
+  }
+
+  _checkDomainValidation (socket, headers, host) {
+    var pathname = headers.slice(headers.indexOf(' ') + 1)
+    pathname = pathname.slice(0, pathname.indexOf(' '))
+    if (this.isDomainValidationRequest(pathname)) {
+      var proof = this.challenges[pathname]
+      if (proof) {
+        socket.end(`HTTP/1.1 200 OK\r\n\r\n${proof}`)
+        this.setChallenge(pathname, null)
+        return
+      } else {
+        socket.end('HTTP/1.1 404 Not Found\r\n\r\nnot found')
+      }
+    } else {
+      socket.end(`HTTP/1.1 302 Found\r\nLocation: https://${host}${pathname}\r\n\r\n`)
+    }
+  }
+
+  _ontlsConnectionSecure (socket) {
+    socket.on('error', err => {
+      console.log('TLS ERROR', err)
+      socket.destroy()
+    })
+    var app = socket.app = socket._handle._parentWrap.app // this will probably break
+    if (app.http) {
+      this._httpServer.emit('connection', socket)
+    } else {
+      this._proxy(socket)
+    }
+  }
+
+  _onhttpRequest (req, res) {
+    var socket = req.socket
+    var app = socket.app
+    var host = req.headers.host || ''
+    var parts = host.split(':')
+    var name = parts[0]
+    var port = parts[1]
+    if (app.http.cname && name !== app.http.cname) {
+      var protocol = app.tls ? 'https' : 'http'
+      port = port ? ':' + port : ''
+      res.setHeader('location', `${protocol}://${app.http.cname}${port}${req.url}`)
+      res.statusCode = 302
+      res.end()
+      return
+    }
+    var pre = app.http.pre
+    var dest = app
+    if (pre) {
+      if (typeof pre === 'string') {
+        pre = app.http.pre = (new Function(pre))()
+      }
+      var redirect = pre(req)
+      if (typeof redirect === 'string') {
+        dest = this.apps[redirect]
+      }
+    }
+    var machine = dest && dest.machines && this.balanceLoad(dest)
+    var upstreamAddress = machine && machine.address
+    var upstreamPort = dest && dest.ports && dest.ports[socket.localPort]
+    if (!upstreamAddress || !upstreamPort) {
+      res.statusCode = 503
+      res.end('service unavailable')
+      return
+    }
+    var upstream = url.parse(upstreamAddress)
+    if (upstream.protocol === null) {
+      upstream = {
+        protocol: 'http:',
+        hostname: upstreamAddress
+      }
+    }
+    var iface = (upstream.protocol === 'https:' ? https : http)
+    var uReq = iface.request({
+      protocol: upstream.protocol,
+      hostname: upstream.hostname,
+      port: upstreamPort,
+      path: req.url,
+      agent: this._httpAgent,
+      headers: req.headers
+    })
+    uReq.on('error', err => {
+      res.statusCode = 503
+      res.end('service unavailable')
+    })
+    uReq.on('response', uRes => {
+      var post = app.http.post
+      if (post) {
+        if (typeof post === 'string') {
+          post = app.http.post = (new Function(post))()
+        }
+        post(uRes)
+      }
+      res.writeHead(
+        uRes.statusCode,
+        uRes.statusMessage,
+        uRes.headers
+      )
+      uRes.pipe(res)
+    })
+    req.pipe(uReq)
   }
 
   _appByName (name) {
@@ -215,139 +321,25 @@ module.exports = class Terminus extends EventEmitter {
       }
     }
     var appId = record && record.appId
-    return appId && this.apps[appId]
-  }
-
-  _ontlsConnection (socket, app) {
-    if (app.tls) {
-      if (this.shouldTerminateTls) {
-        this._tlsServer.emit('connection', socket)
-      } else if (this.acmeValidationPort) {
-        this.SNICallback(name, (err, context) => {
-          if (err) return socket.destroy()
-          this._proxy(socket, app)
-        })
-      } else {
-        this._proxy(socket, app)
+    if (appId) {
+      var app = this.apps[appId]
+      if (app) {
+        app.id = appId
       }
-    } else {
-      this._proxy(socket, app)
+      return app
     }
   }
 
-  _onhttpConnection (socket, httpMeta, app) {
-    if (app.tls) {
-      var pathname = httpMeta.pathname
-      if (this.isDomainValidationRequest(pathname)) {
-        var proof = this.challenges[pathname]
-        if (proof) {
-          socket.end(`HTTP/1.1 200 OK\r\n\r\n${proof}`)
-          this.setChallenge(pathname, null)
-        } else {
-          socket.end('HTTP/1.1 404 Not Found\r\n\r\nnot found')
-        }
-      } else {
-        this._redirectHttp(socket, httpMeta, app)
-      }
-    } else {
-      var http = app.http
-      if (http) {
-        if (http.cname && http.cname !== httpMeta.hostname) {
-          this._redirectHttp(socket, httpMeta, app)
-          return
-        }
-        if (http.pre) {
-          app = this._preprocessHttp(app, httpMeta)
-          socket.unshift(this._reconstructHttp(httpMeta))
-        } else {
-          socket.unshift(httpMeta.raw)
-        }
-      } else {
-        socket.unshift(httpMeta.raw)
-      }
-      this._proxy(socket, app)
-    }
-  }
-
-  _onsecureConnection (socket) {
-    var app = socket._handle._parentWrap.app // this will probably break
-    socket.setTimeout(this.timeout, () => socket.destroy())
-    socket.setNoDelay(true)
-    socket.on('error', noop)
-    var http = app.http
-    if (!http) {
-      this._proxy(socket, app)
-      return
-    }
-    socket.once('readable', () => {
-      var data = socket.read() || new Buffer(0)
-      var httpMeta = this._parseHttp(data)
-      if (!httpMeta) {
-        socket.destroy()
-        return
-      }
-      if (http.cname && http.cname !== socket.servername) {
-        this._redirectHttp(socket, httpMeta, app)
-        return
-      }
-      if (http.pre) {
-        app = this._preprocessHttp(app, httpMeta)
-        socket.unshift(this._reconstructHttp(httpMeta))
-      } else {
-        socket.unshift(data)
-      }
-      this._proxy(socket, app)
-    })
-  }
-
-  _redirectHttp (socket, httpMeta, app) {
-    var protocol = app.tls ? 'https' : 'http'
-    var hostname = app.http && app.http.cname || httpMeta.hostname
-    var port = httpMeta.port ? `:${httpMeta.port}` : ''
-    var pathname = httpMeta.pathname
-    socket.end(`HTTP/1.1 302 Found\r\nLocation: ${protocol}://${hostname}${port}${pathname}\r\n\r\n`)
-  }
-
-  _preprocessHttp (app, httpMeta) {
-    var pre = app.http.pre
-    if (typeof pre === 'string') {
-      pre = app.http.pre = (new Function(pre))()
-    }
-    var redirect = pre(httpMeta)
-    if (typeof redirect === 'string') {
-      var otherApp = this.apps[redirect]
-      if (otherApp && otherApp.ports && otherApp.machines) {
-        app = otherApp
-      }
-    }
-    return app
-  }
-
-  _reconstructHttp (httpMeta) {
-    var { method, pathname, protocol, headers } = httpMeta
-    var header = `${method} ${pathname} ${protocol}\r\n`
-    for (var name in headers) {
-      header += `${name}: ${headers[name]}\r\n`
-    }
-    header += '\r\n'
-    return Buffer.concat([
-      new Buffer(header, 'ascii'),
-      httpMeta.requestBody
-    ])
-  }
-
-  _proxy (socket, app) {
-    var machine = this.balanceLoad(socket, app)
-    var backendAddress = machine && machine.address
-    var backendPort = app.ports[socket.localPort]
-    if (backendAddress && backendPort) {
-      var backend = net.connect(backendPort, backendAddress)
-      backend.on('error', noop)
-      socket.pipe(backend).pipe(socket)
+  _proxy (socket) {
+    var app = socket.app
+    var machine = this.balanceLoad(app)
+    var upstreamPort = app.ports[socket.localPort]
+    var upstreamAddress = machine && machine.address
+    if (upstreamAddress && upstreamPort) {
+      var upstream = net.connect(upstreamPort, upstreamAddress)
+      socket.pipe(upstream).pipe(socket)
     } else {
       socket.destroy()
     }
   }
 }
-
-function noop () {}
