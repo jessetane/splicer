@@ -1,6 +1,6 @@
 {
   "name": "splicer",
-  "version": "0.0.2",
+  "version": "1.0.0",
   "description": "A TCP proxy",
   "dependencies": {
     "basic-auth": "^1.1.0",
