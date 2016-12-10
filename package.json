@@ -11,7 +11,7 @@
   "devDependencies": {
     "autocert": "^2.0.0",
     "firebase-admin": "^4.0.4",
-    "multiroot": "^1.1.0",
+    "multiroot": "^2.0.0",
     "realtime-collection": "github:jessetane/realtime-collection"
   },
   "repository": "https://github.com/jessetane/splicer",
