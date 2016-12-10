@@ -14,7 +14,7 @@
     "multiroot": "^1.1.0",
     "realtime-collection": "github:jessetane/realtime-collection"
   },
-  "repository": "https://github.com/jessetane/terminus",
+  "repository": "https://github.com/jessetane/splicer",
   "author": "jesse.tane@gmail.com",
   "license": "MIT"
 }
