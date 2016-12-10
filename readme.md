@@ -1,5 +1,5 @@
 # splicer
-A TCP proxy with useful TLS and HTTP features suitable for vhosting and load balancing.
+A TCP proxy with useful TLS and HTTP features suitable for virtual hosting and load balancing.
 
 ## Why
 I can never get nginx to do what I want. Also wanted easy [ACME](https://github.com/ietf-wg-acme/acme/) integration, pre & post rules for HTTP (in plain JavaScript!) and websockets that work out of the box.
@@ -56,12 +56,15 @@ proxy.apps = {
       main: true
     },
     ports: {
-      80: true, // tls option will force any unencrypted traffic that looks like http to be redirected
+      80: true, // tls option will force any unencrypted traffic that looks like http to be redirected to https
       443: 4430
     }
   },
   secureTCP: {
-    tls: true,
+    tls: {
+      front: true,
+      back: false // tls option can be an object to indicate if backend connections should use tls
+    },
     machines: {
       main: true
     },
