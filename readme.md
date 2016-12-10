@@ -47,7 +47,10 @@ proxy.apps = {
   secureHTTP: {
     tls: true,
     http: {
-      cname: 'www.secure-tcp.localhost' // forces a redirect if host header does not match
+      cname: 'www.secure-tcp.localhost', // forces a redirect if host header does not match
+      auth: {
+        username: 'password' // http basic authentication
+      }
     },
     machines: {
       main: true

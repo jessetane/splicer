@@ -262,7 +262,7 @@ module.exports = class Splicer extends EventEmitter {
     var httpAuth = app.http.auth
     if (httpAuth) {
       var auth = basicAuth(req)
-      if (!auth || auth.name !== httpAuth.username || auth.pass !== httpAuth.password) {
+      if (!auth || httpAuth[auth.name] !== auth.pass) {
         res.statusCode = 401
         res.setHeader('WWW-Authenticate', `Basic realm="${name}"`)
         res.end('access denied')
