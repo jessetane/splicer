@@ -1,21 +1,16 @@
 #!/usr/bin/env node
 
 var Autocert = require('autocert')
-var firebase = require('firebase')
+var Firebase = require('firebase-admin')
 var Collection = require('realtime-collection')
-var Terminus = require('../../')
+var MultiRoot = require('multiroot')
+var Splicer = require('splicer')
 
 // config
 var env = require('./env.json')
 
 // set up a proxy and some debug logging
-var proxy = new Terminus({
-  acmeValidationPort: 80,
-})
-
-proxy.isDomainValidationRequest = pathname => {
-  return /^\/\.well-known\/acme-challenge/.test(pathname)
-}
+var proxy = new Splicer()
 
 proxy.on('tcpbind', port => {
   console.log(`started listening on ${port}`)
@@ -29,9 +24,9 @@ proxy.on('connection', socket => {
   console.log(`tcp connection on ${socket.localPort} from ${socket.remoteAddress}`)
 })
 
-// ACME CA and storage integration
+// ACME integration
 var autocert = new Autocert({
-  url: 'https://acme-staging.api.letsencrypt.org',
+  // url: 'https://acme-staging.api.letsencrypt.org',
   email: 'info@example.com',
   challenges: proxy.challenges,
   credentials: proxy.credentials
@@ -48,15 +43,26 @@ autocert.setCredential = (name, credential, cb) => {
 }
 
 proxy.SNICallback = autocert.certify.bind(autocert)
-proxy.setChallenge = autocert.setChallenge
 
-// storage
-var storage = firebase.initializeApp({
+proxy.setAcmeChallenge = autocert.setChallenge
+
+proxy.isAcmeHttpChallenge = pathname => {
+  return /^\/\.well-known\/acme-challenge/.test(pathname)
+}
+
+proxy.apps.acme = {
+  ports: {
+    80: true
+  }
+}
+
+// storage intergration
+var storage = Firebase.initializeApp({
   databaseURL: `https://${env.firebaseAppId}.firebaseio.com`,
-  serviceAccount: env.firebaseServiceAccount
+  credential: Firebase.credential.cert(env.googleServiceAccount)
 })
 
-var toRef = path => storage.database().ref(path)
+var toRef = path => storage.database().ref('proxy/' + path)
 
 var apps = new Collection({
   storage: toRef('apps'),
@@ -85,4 +91,19 @@ new Collection({
 new Collection({
   storage: toRef('machines'),
   items: proxy.machines
+})
+
+// static files
+var fileserver = new MultiRoot({ port: 8000 })
+fileserver.names = proxy.names
+fileserver.apps = proxy.apps
+
+apps.on('change', fileserver.reload.bind(fileserver))
+
+fileserver.on('serve', path => {
+  console.log(`started serving ${path}`)
+})
+
+fileserver.on('unserve', path => {
+  console.log(`stopped serving ${path}`)
 })
