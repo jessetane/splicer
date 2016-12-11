@@ -125,7 +125,8 @@ module.exports = class Splicer extends EventEmitter {
   }
 
   balanceLoad (app) {
-    return this.machines[Object.keys(app.machines)[0]]
+    var firstMachine = Object.keys(app.machines)[0]
+    return this.machines[firstMachine]
   }
 
   _createTcpListener (port) {
@@ -370,11 +371,11 @@ module.exports = class Splicer extends EventEmitter {
   _proxy (socket) {
     var app = socket.app
     var machine = this.balanceLoad(app)
+    var upstreamAddress = machine && machine.address
     var upstreamPort = app.ports[socket.localPort]
     if (!upstreamPort) {
       upstreamPort = app.ports['*']
     }
-    var upstreamAddress = machine && machine.address
     if (upstreamAddress && upstreamPort) {
       var transport = app.tls.back ? tls : net
       var upstream = transport.connect({
