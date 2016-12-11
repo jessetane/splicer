@@ -291,6 +291,7 @@ module.exports = class Splicer extends EventEmitter {
       res.end('service unavailable')
       return
     }
+    req.headers['X-Forwarded-For'] = socket.remoteAddress
     var transport = (dest.tls.back ? https : http)
     var opts = {
       hostname: upstreamAddress,
