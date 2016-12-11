@@ -97,7 +97,7 @@ proxy.machines = {
 // you can optionally override `balanceLoad`, by default it returns the first known machine
 proxy.balanceLoad = app => {
   var firstMachine = Object.keys(app.machines)[0]
-  return this.machines[firstMachine]
+  return proxy.machines[firstMachine]
 }
 
 // ACME integration
