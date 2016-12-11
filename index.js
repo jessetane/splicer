@@ -297,7 +297,8 @@ module.exports = class Splicer extends EventEmitter {
       port: upstreamPort,
       path: req.url,
       agent: this._httpAgent,
-      headers: req.headers
+      headers: req.headers,
+      method: req.method
     }
     var uReq = transport.request(opts)
     uReq.on('error', err => {
