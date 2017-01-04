@@ -380,7 +380,8 @@ module.exports = class Splicer extends EventEmitter {
       var transport = app.tls.back ? tls : net
       var upstream = transport.connect({
         host: upstreamAddress,
-        port: upstreamPort
+        port: upstreamPort,
+        servername: upstreamAddress
       })
       upstream.setNoDelay(true)
       upstream.on('error', err => {
