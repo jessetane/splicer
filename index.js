@@ -386,6 +386,10 @@ module.exports = class Splicer extends EventEmitter {
       upstream.on('error', err => {
         // console.log('UPSTREAM ERROR', err)
       })
+      upstream.setTimeout(this.timeout, () => {
+        // console.log('UPSTREAM TIMEOUT')
+        upstream.destroy()
+      })
       socket.pipe(upstream).pipe(socket)
     } else {
       socket.destroy()
