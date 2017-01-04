@@ -142,6 +142,10 @@ module.exports = class Splicer extends EventEmitter {
 
   _ontcpConnection (socket) {
     this.emit('connection', socket)
+    socket.setNoDelay(true)
+    socket.on('error', err => {
+      // console.log('TCP ERROR', err)
+    })
     socket.once('readable', () => {
       var firstPacket = socket.read() || new Buffer(0)
       if (isTls(firstPacket)) {
@@ -170,10 +174,6 @@ module.exports = class Splicer extends EventEmitter {
     if (app.tls.front) {
       this._tlsServer.emit('connection', socket)
     } else {
-      socket.setNoDelay(true)
-      socket.on('error', err => {
-        // console.log('SECURE PASSTHROUGH ERROR', err)
-      })
       socket.setTimeout(this.timeout, () => {
         // console.log('SECURE PASSTHROUGH TIMEOUT')
         socket.destroy()
@@ -208,10 +208,6 @@ module.exports = class Splicer extends EventEmitter {
     }
     socket.app = app
     socket.unshift(firstPacket)
-    socket.setNoDelay(true)
-    socket.on('error', err => {
-      // console.log('INSECURE HTTP ERROR', err)
-    })
     socket.setTimeout(this.timeout, () => {
       // console.log('INSECURE HTTP TIMEOUT')
       socket.destroy()
@@ -225,7 +221,6 @@ module.exports = class Splicer extends EventEmitter {
 
   _ontlsConnectionSecure (socket) {
     var app = socket.app = socket._handle._parentWrap.app // this will probably break
-    socket.setNoDelay(true)
     socket.on('error', err => {
       // console.log('SECURE ERROR', err)
     })
