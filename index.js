@@ -259,10 +259,14 @@ module.exports = class Splicer extends EventEmitter {
     if (httpAuth) {
       var auth = basicAuth(req)
       if (!auth || httpAuth[auth.name] !== auth.pass) {
-        res.statusCode = 401
-        res.setHeader('WWW-Authenticate', `Basic realm="${name}"`)
-        res.end('access denied')
-        return
+        // this next check shouldn't be necessary but
+        // https://bugs.webkit.org/show_bug.cgi?id=80362
+        if (auth || req.headers.upgrade !== 'websocket') {
+          res.statusCode = 401
+          res.setHeader('WWW-Authenticate', `Basic realm="secure area"`)
+          res.end('access denied')
+          return
+        }
       }
     }
     var { pre, post } = app.http
