@@ -243,6 +243,10 @@ module.exports = class Splicer extends EventEmitter {
       res.end('not found')
       return
     }
+    if (!app.http) {
+      socket.destroy()
+      return
+    }
     var host = req.headers.host || ''
     var parts = host.split(':')
     var name = parts[0]
@@ -310,6 +314,10 @@ module.exports = class Splicer extends EventEmitter {
     uReq.on('upgrade', onresponse)
     req.pipe(uReq)
     function onresponse (uRes, uSocket) {
+      if (!app.http) {
+        socket.destroy()
+        return
+      }
       if (post) {
         if (typeof post === 'string') {
           post = app.http.post = (new Function('require', post))(require)
