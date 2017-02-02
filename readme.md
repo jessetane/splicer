@@ -2,7 +2,7 @@
 A TCP proxy with useful TLS and HTTP features suitable for virtual hosting and load balancing.
 
 ## Why
-Because [nginx is weird](https://www.nginx.com/resources/wiki/start/topics/depth/ifisevil/) and for my use case usability matters more than performance. I also wanted easy [ACME](https://github.com/ietf-wg-acme/acme/) integration, pre & post hooks for HTTP stuff (in plain JavaScript!) and websockets that Just Work.
+Because [nginx is weird](https://www.nginx.com/resources/wiki/start/topics/depth/ifisevil/) and usability is more important to me than performance. I also wanted easy [ACME](https://github.com/ietf-wg-acme/acme/) integration, pre & post hooks for HTTP stuff (in plain JavaScript!) and websockets that Just Work.
 
 ## How
 node.js built in TCP, TLS and HTTP servers.
