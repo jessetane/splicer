@@ -191,6 +191,7 @@ module.exports = class Splicer extends EventEmitter {
       return
     }
     if (app.tls.front) {
+      var cname = app.http && app.http.cname || host[1]
       var pathname = headers.slice(headers.indexOf(' ') + 1)
       pathname = pathname.slice(0, pathname.indexOf(' '))
       if (this.isAcmeHttpChallenge(pathname)) {
@@ -202,7 +203,7 @@ module.exports = class Splicer extends EventEmitter {
           socket.end('HTTP/1.1 404 Not Found\r\n\r\nnot found')
         }
       } else {
-        socket.end(`HTTP/1.1 302 Found\r\nLocation: https://${host[1]}${pathname}\r\n\r\n`)
+        socket.end(`HTTP/1.1 302 Found\r\nLocation: https://${cname}${pathname}\r\n\r\n`)
       }
       return
     }
