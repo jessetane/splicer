@@ -197,7 +197,13 @@ module.exports = class Splicer extends EventEmitter {
       if (this.isAcmeHttpChallenge(pathname)) {
         var proof = this.challenges[pathname]
         if (proof) {
-          this.setAcmeChallenge(pathname, null)
+          if (typeof proof === 'string') {
+            proof = { string: proof }
+            setTimeout(() => {
+              this.setAcmeChallenge(pathname, null)
+            }, 5000)
+          }
+          proof = proof.string
           socket.end(`HTTP/1.1 200 OK\r\n\r\n${proof}`)
         } else {
           socket.end('HTTP/1.1 404 Not Found\r\n\r\nnot found')
