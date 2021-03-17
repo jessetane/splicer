@@ -9,7 +9,7 @@
     "sni": "^1.0.0"
   },
   "devDependencies": {
-    "autocert": "^3.0.0",
+    "autocert": "^4.0.0",
     "firebase-admin": "^4.0.4",
     "multiroot": "^2.0.0",
     "realtime-collection": "github:jessetane/realtime-collection"
