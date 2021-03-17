@@ -49,10 +49,10 @@ module.exports = class Splicer extends EventEmitter {
     this._httpServer = new http.Server()
     this._httpServer.on('request', this._onhttpRequest)
     this._httpServer.on('upgrade', this._onhttpRequest)
-    this._httpAgent = new http.Agent({
+    this._httpAgentOpts = {
       keepAlive: true,
       keepAliveMsecs: this.timeout
-    })
+    }
   }
 
   close () {
@@ -303,14 +303,32 @@ module.exports = class Splicer extends EventEmitter {
       return
     }
     req.headers['x-forwarded-for'] = socket.remoteAddress
-    var transport = (dest.tls.back ? https : http)
+    var transport = http
+    var agent = null
+    var rejectUnauthorized = true
+    if (dest.tls.back) {
+      transport = https
+      if (!this._httpsAgent) {
+        this._httpsAgent = new https.Agent(this._httpAgentOpts)
+      }
+      agent = this._httpsAgent
+      if (dest.tls.back === 'insecure') {
+        rejectUnauthorized = false
+      }
+    } else {
+      if (!this._httpAgent) {
+        this._httpAgent = new http.Agent(this._httpAgentOpts)
+      }
+      agent = this._httpAgent
+    }
     var opts = {
       hostname: upstreamAddress,
       port: upstreamPort,
       path: req.url,
-      agent: this._httpAgent,
       headers: req.headers,
-      method: req.method
+      method: req.method,
+      agent,
+      rejectUnauthorized
     }
     var uReq = transport.request(opts)
     uReq.on('error', err => {
@@ -395,7 +413,8 @@ module.exports = class Splicer extends EventEmitter {
       var upstream = transport.connect({
         host: upstreamAddress,
         port: upstreamPort,
-        servername: upstreamAddress
+        servername: upstreamAddress,
+        rejectUnauthorized: app.tls.back !== 'insecure'
       })
       upstream.setNoDelay(true)
       upstream.on('error', err => {
