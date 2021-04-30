@@ -182,6 +182,14 @@ module.exports = class Splicer extends EventEmitter {
     }
   }
 
+  _resolveCname (name, config) {
+    if (!config) return name
+    if (typeof config === 'string') return config
+    if (config.exceptions && config.exceptions[name]) return name
+    if (config.value) return config.value
+    return name
+  }
+
   _onhttpConnection (socket, firstPacket, headers) {
     var host = extractHostHeader.exec(headers)
     var name = host && host[1].split(':')[0]
@@ -191,7 +199,7 @@ module.exports = class Splicer extends EventEmitter {
       return
     }
     if (app.tls.front) {
-      var cname = app.http && app.http.cname || host[1]
+      var cname = this._resolveCname(host[1], app.http && app.http.cname)
       var pathname = headers.slice(headers.indexOf(' ') + 1)
       pathname = pathname.slice(0, pathname.indexOf(' '))
       if (this.isAcmeHttpChallenge(pathname)) {
@@ -258,10 +266,11 @@ module.exports = class Splicer extends EventEmitter {
     var parts = host.split(':')
     var name = parts[0]
     var port = parts[1]
-    if (app.http.cname && name !== app.http.cname) {
+    var cname = this._resolveCname(name, app.http && app.http.cname)
+    if (name !== cname) {
       var protocol = app.tls.front ? 'https' : 'http'
       port = port ? ':' + port : ''
-      res.setHeader('location', `${protocol}://${app.http.cname}${port}${req.url}`)
+      res.setHeader('location', `${protocol}://${cname}${port}${req.url}`)
       res.statusCode = 302
       res.end()
       return
