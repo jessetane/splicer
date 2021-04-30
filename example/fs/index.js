@@ -18,6 +18,7 @@ proxy.names = env.names
 proxy.machines = env.machines
 proxy.credentials = env.credentials
 
+/*
 proxy.on('tcpbind', port => {
   console.log(`started listening on ${port}`)
 })
@@ -28,6 +29,15 @@ proxy.on('tcpunbind', port => {
 
 proxy.on('connection', socket => {
   console.log(`tcp connection on ${socket.localPort} from ${socket.remoteAddress}`)
+})
+
+proxy._tlsServer.on('tlsClientError', err => {
+  console.error('tlsClientError:', err)
+})
+*/
+
+proxy.on('request', socket, name, app => {
+  console.log(`[${new Date().toISOString()}] request for ${name} on ${socket.localPort} from ${socket.remoteAddress}`)
 })
 
 // ACME integration

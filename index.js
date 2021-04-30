@@ -165,6 +165,7 @@ module.exports = class Splicer extends EventEmitter {
   _ontlsConnection (socket, firstPacket) {
     var name = extractSni(firstPacket)
     var app = this._appByName(name)
+    this.emit('request', socket, name, app)
     if (!app || !app.machines || !app.ports) {
       socket.destroy()
       return
@@ -194,6 +195,7 @@ module.exports = class Splicer extends EventEmitter {
     var host = extractHostHeader.exec(headers)
     var name = host && host[1].split(':')[0]
     var app = this._appByName(name)
+    this.emit('request', socket, name, app)
     if (!app || !app.machines || !app.ports) {
       socket.end('HTTP/1.1 404 Not Found\r\n\r\nnot found')
       return
