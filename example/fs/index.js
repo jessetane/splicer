@@ -36,7 +36,7 @@ proxy._tlsServer.on('tlsClientError', err => {
 })
 */
 
-proxy.on('request', socket, name, app => {
+proxy.on('request', (socket, name, app) => {
   console.log(`[${new Date().toISOString()}] request for ${name} on ${socket.localPort} from ${socket.remoteAddress}`)
 })
 
