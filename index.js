@@ -32,6 +32,7 @@ module.exports = class Splicer extends EventEmitter {
     this.credentials = {}
     this.challenges = {}
     this.machines = {}
+    this.hooks = {}
 
     // timeout inactive connections after 1m
     this.timeout = opts.timeout !== undefined ? opts.timeout : 60000
@@ -65,6 +66,7 @@ module.exports = class Splicer extends EventEmitter {
 
   reload () {
     for (var id in this.apps) {
+      delete this.hooks[id]
       this.onappchange({ oldData: this.apps[id] })
     }
     for (id in this.apps) {
@@ -292,15 +294,19 @@ module.exports = class Splicer extends EventEmitter {
       }
     }
     var { pre, post } = app.http
+    var hooks = this.hooks[app.id]
     if (pre || post) {
+      if (!hooks) {
+        hooks = this.hooks[app.id] = {}
+      }
       req.parsedUrl = url.parse(req.url, true)
     }
     var dest = app
     if (pre) {
-      if (typeof pre === 'string') {
-        pre = app.http.pre = (new Function('require', pre))(require)
+      if (!hooks.pre) {
+        hooks.pre = (new Function('require', pre))(require)
       }
-      var redirect = pre(req, app)
+      var redirect = hooks.pre(req, app)
       if (typeof redirect === 'string') {
         dest = this.apps[redirect]
       }
@@ -355,10 +361,10 @@ module.exports = class Splicer extends EventEmitter {
         return
       }
       if (post) {
-        if (typeof post === 'string') {
-          post = app.http.post = (new Function('require', post))(require)
+        if (!hooks.post) {
+          hooks.post = (new Function('require', post))(require)
         }
-        post(uRes, app)
+        hooks.post(uRes, app)
       }
       var connection = uRes.headers.connection
       if (connection && connection.toLowerCase() === 'upgrade') {
