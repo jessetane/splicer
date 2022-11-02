@@ -9,7 +9,7 @@
     "sni": "^1.0.0"
   },
   "devDependencies": {
-    "autocert": "github:jessetane/autocert#node-acme-client",
+    "autocert": "^5.0.0",
     "firebase-admin": "^4.0.4",
     "multiroot": "^2.0.0",
     "realtime-collection": "github:jessetane/realtime-collection"
