@@ -10,9 +10,10 @@
   },
   "devDependencies": {
     "autocert": "^5.0.0",
-    "firebase-admin": "^4.0.4",
-    "multiroot": "^3.1.0",
-    "realtime-collection": "github:jessetane/realtime-collection"
+    "multiroot": "^3.1.0"
+  },
+  "scripts": {
+    "example": "cd example && node index.js"
   },
 	"repository": "https://github.com/jessetane/splicer",
   "author": "jesse.tane@gmail.com",

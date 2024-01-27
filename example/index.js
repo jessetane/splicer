@@ -3,7 +3,7 @@
 var fs = require('fs')
 var Autocert = require('autocert')
 var MultiRoot = require('multiroot')
-var Splicer = require('../../')
+var Splicer = require('../')
 
 // config
 var env = require('./env.json')
@@ -69,11 +69,13 @@ proxy.isAcmeHttpChallenge = pathname => {
 proxy.apps = env.apps
 
 // make sure 80 is open for http challenges
+/*
 proxy.apps.acme = {
   ports: {
     80: true
   }
 }
+*/
 
 proxy.reload()
 
