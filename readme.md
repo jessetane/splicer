@@ -28,15 +28,9 @@ proxy.on('connection', socket => {
 
 // map dns names to apps
 proxy.names = {
-  'www.secure-http.localhost': {
-    appId: 'secureHTTP'
-  },
-  'secure-http.localhost': {
-    appId: 'secureHTTP'
-  },
-  'secure-tcp.localhost': {
-    appId: 'secureTCP'
-  },
+  'www.secure-http.localhost': 'secureHTTP',
+  'secure-http.localhost': 'secureHTTP',
+  'secure-tcp.localhost': 'secureTCP',
   'insecure-http.localhost': {
     appId: 'insecureHTTP'
   }

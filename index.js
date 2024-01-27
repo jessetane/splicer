@@ -406,7 +406,7 @@ module.exports = class Splicer extends EventEmitter {
         }
       }
     }
-    var appId = record && record.appId
+    var appId = record?.appId || record
     if (appId) {
       var app = this.apps[appId]
       if (app) {
