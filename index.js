@@ -148,7 +148,8 @@ module.exports = class Splicer extends EventEmitter {
     socket.on('error', err => {
       // console.log('TCP ERROR', err)
     })
-    socket.once('data', firstPacket => {
+    socket.once('readable', () => {
+      var firstPacket = socket.read() || Buffer.alloc(0)
       if (isTls(firstPacket)) {
         this._ontlsConnection(socket, firstPacket)
       } else {
