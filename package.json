@@ -11,10 +11,10 @@
   "devDependencies": {
     "autocert": "^5.0.0",
     "firebase-admin": "^4.0.4",
-    "multiroot": "^2.0.0",
+    "multiroot": "^3.1.0",
     "realtime-collection": "github:jessetane/realtime-collection"
   },
-  "repository": "https://github.com/jessetane/splicer",
+	"repository": "https://github.com/jessetane/splicer",
   "author": "jesse.tane@gmail.com",
   "license": "MIT"
 }
