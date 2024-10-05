@@ -1,6 +1,6 @@
 {
 	"name": "splicer",
-	"version": "2.6.1",
+	"version": "3.0.0",
 	"type": "module",
 	"main": "index.js",
 	"description": "A TCP proxy",
