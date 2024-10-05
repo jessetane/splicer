@@ -18,7 +18,6 @@ proxy.names = env.names
 proxy.machines = env.machines
 proxy.credentials = env.credentials
 
-/*
 proxy.on('tcpbind', port => {
   console.log(`started listening on ${port}`)
 })
@@ -27,6 +26,7 @@ proxy.on('tcpunbind', port => {
   console.log(`stopped listening on ${port}`)
 })
 
+/*
 proxy.on('connection', socket => {
   console.log(`tcp connection on ${socket.localPort} from ${socket.remoteAddress}`)
 })
@@ -42,7 +42,7 @@ proxy.on('request', (socket, name, app) => {
 
 // ACME integration
 var autocert = new Autocert({
-  // url: 'https://acme-staging.api.letsencrypt.org',
+  // url: 'https://acme-staging-v02.api.letsencrypt.org/directory'
   email: 'info@example.com',
   challenges: proxy.challenges,
   credentials: proxy.credentials
