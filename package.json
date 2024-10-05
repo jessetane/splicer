@@ -1,6 +1,8 @@
 {
 	"name": "splicer",
 	"version": "2.6.1",
+	"type": "module",
+	"main": "index.js",
 	"description": "A TCP proxy",
 	"dependencies": {
 		"basic-auth": "^1.1.0",
@@ -15,7 +17,10 @@
 	"scripts": {
 		"example": "cd example && node index.js"
 	},
-	"repository": "https://github.com/jessetane/splicer",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/jessetane/splicer"
+	},
 	"author": "jesse.tane@gmail.com",
 	"license": "MIT"
 }

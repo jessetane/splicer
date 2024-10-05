@@ -1,17 +1,17 @@
-var EventEmitter = require('events')
-var net = require('net')
-var tls = require('tls')
-var http = require('http')
-var https = require('https')
-var url = require('url')
-var diff = require('object-diff')
-var isTls = require('is-tls-client-hello')
-var extractSni = require('sni')
-var isHttp = /^.+ .+ HTTP\/1\.1$/m
-var extractHostHeader = /\r\nhost: (.+?)(?:\r|$)/i
-var basicAuth = require('basic-auth')
+import EventEmitter from 'events'
+import net from 'net'
+import tls from 'tls'
+import http from 'http'
+import https from 'https'
+import url from 'url'
+import diff from 'object-diff'
+import isTls from 'is-tls-client-hello'
+import extractSni from 'sni'
+import basicAuth from 'basic-auth'
+const isHttp = /^.+ .+ HTTP\/1\.1$/m
+const extractHostHeader = /\r\nhost: (.+?)(?:\r|$)/i
 
-module.exports = class Splicer extends EventEmitter {
+class Splicer extends EventEmitter {
   constructor (opts = {}) {
     super()
 
@@ -447,3 +447,5 @@ module.exports = class Splicer extends EventEmitter {
     }
   }
 }
+
+export default Splicer

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-var fs = require('fs')
-var Autocert = require('autocert')
-var MultiRoot = require('multiroot')
-var Splicer = require('../')
+import fs from 'fs/promises'
+import Autocert from 'autocert'
+import MultiRoot from 'multiroot'
+import Splicer from '../index.js'
 
 // config
-var env = require('./env.json')
+var env = JSON.parse(await fs.readFile('./env.json', 'utf8'))
 if (!env.credentials) {
   env.credentials = {}
 }
@@ -48,10 +48,14 @@ var autocert = new Autocert({
   credentials: proxy.credentials
 })
 
-autocert.setCredential = function (name, credential, cb) {
+autocert.setCredential = async function (name, credential, cb) {
   this.credentials[name] = credential
-  console.log('writing filez', env)
-  fs.writeFileSync(__dirname + '/env.json', JSON.stringify(env, null, 2))
+  console.log('received credential, persisting', env)
+  try {
+    await fs.writeFile('./env.json', JSON.stringify(env, null, 2))
+  } catch (err) {
+    console.error('failed to persist credential', err)
+  }
   cb()
 }
 
