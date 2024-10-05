@@ -213,7 +213,7 @@ module.exports = class Splicer extends EventEmitter {
             proof = { string: proof }
             setTimeout(() => {
               this.setAcmeChallenge(pathname, null)
-            }, 5000)
+            }, 2 * 60 * 1000)
           }
           proof = proof.string
           socket.end(`HTTP/1.1 200 OK\r\n\r\n${proof}`)
