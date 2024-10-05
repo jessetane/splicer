@@ -148,20 +148,26 @@ class Splicer extends EventEmitter {
     socket.on('error', err => {
       // console.log('TCP ERROR', err)
     })
-    socket.once('readable', () => {
-      var firstPacket = socket.read() || Buffer.alloc(0)
-      if (isTls(firstPacket)) {
-        this._ontlsConnection(socket, firstPacket)
+    var self = this
+    var firstPacket = Buffer.alloc(0)
+    socket.on('readable', onreadable)
+    function onreadable () {
+      firstPacket = Buffer.concat([firstPacket, socket.read() || Buffer.alloc(0)])
+      const r = isTls(firstPacket)
+      if (r > 1) return
+      socket.removeListener('readable', onreadable)
+      if (r === 1) {
+        self._ontlsConnection(socket, firstPacket)
       } else {
         var headers = firstPacket.toString('ascii')
         if (isHttp.test(headers)) {
-          this._onhttpConnection(socket, firstPacket, headers)
+          self._onhttpConnection(socket, firstPacket, headers)
         } else {
           // other tcp protocols with "name" data in header?
           socket.destroy()
         }
       }
-    })
+    }
   }
 
   _ontlsConnection (socket, firstPacket) {
