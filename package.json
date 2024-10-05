@@ -5,14 +5,15 @@
 	"main": "index.js",
 	"description": "A TCP proxy",
 	"dependencies": {
+		"autocert": "^5.1.0",
 		"basic-auth": "^1.1.0",
 		"is-tls-client-hello": "^2.0.1",
+		"multiroot": "^3.1.0",
 		"object-diff": "0.0.3",
 		"sni": "^1.0.0"
 	},
-	"devDependencies": {
-		"autocert": "^5.0.0",
-		"multiroot": "^3.1.0"
+	"bin": {
+		"splicer": "./bin/index.js"
 	},
 	"scripts": {
 		"example": "cd example && node index.js"

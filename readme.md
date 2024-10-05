@@ -2,17 +2,67 @@
 A TCP proxy with useful TLS and HTTP features suitable for virtual hosting and load balancing.
 
 ## Why
-Because [nginx is weird](https://www.nginx.com/resources/wiki/start/topics/depth/ifisevil/) and usability is more important to me than performance. I also wanted easy [ACME](https://github.com/ietf-wg-acme/acme/) integration, pre & post hooks for HTTP stuff (in plain JavaScript!) and websockets that Just Work.
+Because [nginx is weird](https://www.nginx.com/resources/wiki/start/topics/depth/ifisevil/). I also wanted easy [ACME](https://github.com/ietf-wg-acme/acme/) integration, pre & post hooks for HTTP stuff (in plain JavaScript!) and websockets that Just Work.
 
 ## How
 node.js built in TCP, TLS and HTTP servers.
 
 ## Example
-``` javascript
-var Splicer = require('splicer')
+
+### Batteries included executable:
+Install:
+```shell
+npm i -g splicer
+```
+
+Create a config file:
+```shell
+cat << EOF > ./config.json
+{
+  "names": {
+    "my.domain.com": "demo"
+  },
+  "apps": {
+    "demo": {
+      "ports": {
+        "80": "8000",
+        "443": "8000"
+      },
+      "machines": {
+        "localhost": true
+      },
+      "root": "/var/www/my.domain.com/public",
+      "tls": true
+    }
+  },
+  "machines": {
+    "localhost": {
+      "address": "127.0.0.1"
+    }
+  },
+  "fileServerPort": "8000"
+}
+EOF
+```
+Note that this file will be modified at run time to store certificates and signing keys.
+
+Start the proxy:
+```shell
+splicer config.json
+```
+
+Dynamic config reload:
+```shell
+kill -s HUP "$(pgrep -fn splicer)"
+```
+
+### As a JavaScript module
+See also example/index.js
+```javascript
+import Splicer from 'splicer'
 
 // create a proxy
-var proxy = new Splicer()
+const proxy = new Splicer()
 
 proxy.on('tcpbind', port => {
   console.log(`started listening on ${port}`)
@@ -24,6 +74,10 @@ proxy.on('tcpunbind', port => {
 
 proxy.on('connection', socket => {
   console.log(`tcp connection on ${socket.localPort} from ${socket.remoteAddress}`)
+})
+
+proxy.on('request', (socket, name, app) => {
+  console.log(`[${new Date().toISOString()}] request for ${name} on ${socket.localPort} from ${socket.remoteAddress}`)
 })
 
 // map dns names to apps
@@ -50,7 +104,8 @@ proxy.apps = {
       main: true
     },
     ports: {
-      80: true, // tls option will force any unencrypted traffic that looks like http to be redirected to https
+      80: true, // mapping 80 to a specific destination port is unnecessary for apps that set the tls option
+                // but it should be explitly opened for answering acme http challenges and redirecting new visitors
       443: 4430
     }
   },
@@ -90,15 +145,15 @@ proxy.machines = {
 
 // you can optionally override `balanceLoad`, by default it returns the first known machine
 proxy.balanceLoad = app => {
-  var firstMachine = Object.keys(app.machines)[0]
+  const firstMachine = Object.keys(app.machines)[0]
   return proxy.machines[firstMachine]
 }
 
 // ACME integration
-var Autocert = require('autocert')
+const Autocert = require('autocert')
 
-var autocert = new Autocert({
-  url: 'https://acme-staging.api.letsencrypt.org',
+const autocert = new Autocert({
+  url: 'https://acme-staging-v02.api.letsencrypt.org/directory',
   email: 'info@example.com',
   challenges: proxy.challenges,
   credentials: proxy.credentials
@@ -122,13 +177,6 @@ proxy.setAcmeChallenge = autocert.setChallenge = (key, value, cb) => {
 autocert.setCredential = (name, credential, cb) => {
   proxy.credentials[name] = credential
   cb()
-}
-
-// make sure port 80 is open
-proxy.apps.acme = {
-  ports: {
-    80: true
-  }
 }
 
 // start listening
