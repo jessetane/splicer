@@ -310,7 +310,7 @@ class Splicer extends EventEmitter {
     var dest = app
     if (pre) {
       if (!hooks.pre) {
-        hooks.pre = (new Function('require', pre))(require)
+        hooks.pre = (new Function(pre))()
       }
       var redirect = hooks.pre(req, app)
       if (typeof redirect === 'string') {
@@ -368,7 +368,7 @@ class Splicer extends EventEmitter {
       }
       if (post) {
         if (!hooks.post) {
-          hooks.post = (new Function('require', post))(require)
+          hooks.post = (new Function(post))()
         }
         hooks.post(uRes, app)
       }
