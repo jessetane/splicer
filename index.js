@@ -353,6 +353,7 @@ class Splicer extends EventEmitter {
       agent,
       rejectUnauthorized
     }
+    opts.headers.host = upstreamPort == 443 || upstreamPort == 80 ? upstreamAddress : `${upstreamAddress}:${upstreamPort}`
     var uReq = transport.request(opts)
     uReq.on('error', err => {
       res.statusCode = 503
