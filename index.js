@@ -155,6 +155,7 @@ class Splicer extends EventEmitter {
   _ontcpConnection (socket) {
     this.emit('connection', socket)
     socket.setNoDelay(true)
+    socket.setTimeout(this.timeout, () => socket.destroy())
     socket.on('error', err => {
       // console.log('TCP ERROR', err)
     })
