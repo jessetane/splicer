@@ -22,6 +22,10 @@ proxy.on('connection', socket => {
 })
 */
 
+proxy.on('error', err => {
+  console.error('proxy error:', err)
+})
+
 proxy._tlsServer.on('tlsClientError', err => {
   console.error('tlsClientError:', err)
 })
