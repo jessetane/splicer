@@ -113,7 +113,7 @@ class Splicer extends EventEmitter {
   }
 
   SNICallback (name, cb) {
-    var credential = this.credentials[name]
+    var credential = Object.hasOwn(this.credentials, name) ? this.credentials[name] : null
     if (credential) {
       if (!credential.context) {
         credential.context = tls.createSecureContext({
@@ -278,7 +278,7 @@ class Splicer extends EventEmitter {
 
   _onhttpRequest (req, res) {
     var socket = req.socket
-    var app = this.apps[socket.app.id]
+    var app = socket.app && Object.hasOwn(this.apps, socket.app.id) ? this.apps[socket.app.id] : null
     if (!app) {
       res.statusCode = 404
       res.end('not found')
@@ -304,7 +304,7 @@ class Splicer extends EventEmitter {
     var httpAuth = app.http.auth
     if (httpAuth) {
       var auth = basicAuth(req)
-      var expectedPass = auth && httpAuth[auth.name]
+      var expectedPass = auth && Object.hasOwn(httpAuth, auth.name) ? httpAuth[auth.name] : null
       if (!expectedPass || !safeCompare(auth.pass, expectedPass)) {
         // this next check shouldn't be necessary but
         // https://bugs.webkit.org/show_bug.cgi?id=80362
@@ -414,13 +414,14 @@ class Splicer extends EventEmitter {
   }
 
   _appByName (name) {
-    if (!name) return
-    var record = this.names[name]
+    if (!name || typeof name !== 'string') return
+    var record = Object.hasOwn(this.names, name) ? this.names[name] : null
     if (!record) {
       var nameParts = null
       for (var key in this.names) {
+        if (!Object.hasOwn(this.names, key)) continue
         var candidate = this.names[key]
-        if (candidate.wild) {
+        if (candidate && candidate.wild) {
           nameParts = nameParts || name.split('.')
           var keyParts = key.split('.')
           if (keyParts.length === nameParts.length) {
@@ -435,7 +436,7 @@ class Splicer extends EventEmitter {
       }
     }
     var appId = record?.appId || record
-    if (appId) {
+    if (appId && Object.hasOwn(this.apps, appId)) {
       var app = this.apps[appId]
       if (app) {
         app.id = appId
