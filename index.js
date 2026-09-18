@@ -134,6 +134,7 @@ class Splicer extends EventEmitter {
   _createTcpListener (port) {
     var listener = new net.Server()
     listener.apps = 1
+    listener.on('error', err => this.emit('error', err))
     listener.on('connection', this._ontcpConnection)
     listener.listen(port, '::', err => {
       if (err) throw err
