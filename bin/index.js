@@ -80,7 +80,14 @@ async function reloadConfig () {
 	try {
 		await fs.chmod(configFile, 0o600)
 	} catch (err) {}
-	config = JSON.parse(await fs.readFile(configFile, 'utf8'))
+	var nextConfig
+	try {
+		nextConfig = JSON.parse(await fs.readFile(configFile, 'utf8'))
+	} catch (err) {
+		console.error('failed to load or parse config file:', err)
+		return
+	}
+	config = nextConfig
 	const oldApps = proxy.apps
 	const allApps = Object.assign({}, proxy.apps, config.apps)
 	proxy.apps = config.apps
