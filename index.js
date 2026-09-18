@@ -228,7 +228,9 @@ class Splicer extends EventEmitter {
           socket.end('HTTP/1.1 404 Not Found\r\n\r\nnot found')
         }
       } else {
-        socket.end(`HTTP/1.1 302 Found\r\nLocation: https://${cname}${pathname}\r\n\r\n`)
+        var cleanCname = String(cname).replace(/[\r\n]/g, '')
+        var cleanPath = String(pathname).replace(/[\r\n]/g, '')
+        socket.end(`HTTP/1.1 302 Found\r\nLocation: https://${cleanCname}${cleanPath}\r\n\r\n`)
       }
       return
     }
