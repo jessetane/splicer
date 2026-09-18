@@ -6,6 +6,9 @@ import MultiRoot from 'multiroot'
 import Splicer from '../index.js'
 
 // config
+try {
+  await fs.chmod('./env.json', 0o600)
+} catch (err) {}
 var env = JSON.parse(await fs.readFile('./env.json', 'utf8'))
 if (!env.credentials) {
   env.credentials = {}
@@ -52,7 +55,8 @@ autocert.setCredential = async function (name, credential, cb) {
   this.credentials[name] = credential
   console.log('received credential, persisting', env)
   try {
-    await fs.writeFile('./env.json', JSON.stringify(env, null, 2))
+    await fs.writeFile('./env.json', JSON.stringify(env, null, 2), { mode: 0o600 })
+    await fs.chmod('./env.json', 0o600)
   } catch (err) {
     console.error('failed to persist credential', err)
   }

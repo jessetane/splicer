@@ -40,7 +40,8 @@ autocert.setCredential = async function (name, credential, cb) {
   this.credentials[name] = credential
   console.log('received credential, persisting', config)
   try {
-    await fs.writeFile(configFile, JSON.stringify(config, null, 2))
+    await fs.writeFile(configFile, JSON.stringify(config, null, 2), { mode: 0o600 })
+    await fs.chmod(configFile, 0o600)
   } catch (err) {
     console.error('failed to persist credential', err)
   }
@@ -76,6 +77,9 @@ async function reloadConfig () {
 	if (config) {
 		console.log('got SIGHUP, reloading config')
 	}
+	try {
+		await fs.chmod(configFile, 0o600)
+	} catch (err) {}
 	config = JSON.parse(await fs.readFile(configFile, 'utf8'))
 	const oldApps = proxy.apps
 	const allApps = Object.assign({}, proxy.apps, config.apps)
