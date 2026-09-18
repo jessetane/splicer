@@ -8,8 +8,17 @@ import diff from 'object-diff'
 import isTls from 'is-tls-client-hello'
 import extractSni from 'sni'
 import basicAuth from 'basic-auth'
+import crypto from 'crypto'
 const isHttp = /^.+ .+ HTTP\/1\.1$/m
 const extractHostHeader = /\r\nhost: (.+?)(?:\r|$)/i
+
+function safeCompare (a, b) {
+	if (typeof a !== 'string' || typeof b !== 'string') return false
+	const bufA = Buffer.from(a)
+	const bufB = Buffer.from(b)
+	if (bufA.length !== bufB.length) return false
+	return crypto.timingSafeEqual(bufA, bufB)
+}
 
 class Splicer extends EventEmitter {
   constructor (opts = {}) {
@@ -295,7 +304,8 @@ class Splicer extends EventEmitter {
     var httpAuth = app.http.auth
     if (httpAuth) {
       var auth = basicAuth(req)
-      if (!auth || httpAuth[auth.name] !== auth.pass) {
+      var expectedPass = auth && httpAuth[auth.name]
+      if (!expectedPass || !safeCompare(auth.pass, expectedPass)) {
         // this next check shouldn't be necessary but
         // https://bugs.webkit.org/show_bug.cgi?id=80362
         if (auth || req.headers.upgrade !== 'websocket') {
