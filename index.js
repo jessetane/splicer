@@ -332,6 +332,7 @@ class Splicer extends EventEmitter {
       res.end('service unavailable')
       return
     }
+    req.headers['x-forwarded-proto'] = app.tls.front ? 'https' : 'http'
     req.headers['x-forwarded-for'] = socket.remoteAddress
     var transport = http
     var agent = null
