@@ -367,6 +367,8 @@ class Splicer extends EventEmitter {
       res.statusCode = 503
       res.end('service unavailable')
     })
+    req.on('close', () => !req.complete && uReq.destroy())
+    res.on('close', () => !res.writableEnded && uReq.destroy())
     uReq.on('response', onresponse)
     uReq.on('upgrade', onresponse)
     req.pipe(uReq)
