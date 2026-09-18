@@ -113,6 +113,7 @@ class Splicer extends EventEmitter {
   }
 
   SNICallback (name, cb) {
+    if (name) name = name.toLowerCase()
     var credential = Object.hasOwn(this.credentials, name) ? this.credentials[name] : null
     if (credential) {
       if (!credential.context) {
@@ -183,6 +184,7 @@ class Splicer extends EventEmitter {
 
   _ontlsConnection (socket, firstPacket) {
     var name = extractSni(firstPacket)
+    if (name) name = name.toLowerCase()
     var app = this._appByName(name)
     this.emit('request', socket, name, app)
     if (!app || !app.machines || !app.ports) {
@@ -416,6 +418,7 @@ class Splicer extends EventEmitter {
 
   _appByName (name) {
     if (!name || typeof name !== 'string') return
+    name = name.toLowerCase()
     var record = Object.hasOwn(this.names, name) ? this.names[name] : null
     if (!record) {
       var nameParts = null
