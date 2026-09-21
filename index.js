@@ -7,7 +7,7 @@ import url from 'url'
 import diff from 'object-diff'
 import isTls from 'is-tls-client-hello'
 import extractSni from 'sni'
-import basicAuth from 'basic-auth'
+import { parse as basicAuth } from 'basic-auth'
 import crypto from 'crypto'
 const isHttp = /^.+ .+ HTTP\/1\.1$/m
 const extractHostHeader = /\r\nhost: (.+?)(?:\r|$)/i
@@ -306,7 +306,7 @@ class Splicer extends EventEmitter {
     }
     var httpAuth = app.http.auth
     if (httpAuth) {
-      var auth = basicAuth(req)
+      var auth = req.headers.authorization ? basicAuth(req.headers.authorization) : null
       var expectedPass = auth && Object.hasOwn(httpAuth, auth.name) ? httpAuth[auth.name] : null
       if (!expectedPass || !safeCompare(auth.pass, expectedPass)) {
         // this next check shouldn't be necessary but
