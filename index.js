@@ -340,7 +340,7 @@ class Splicer extends EventEmitter {
     var machine = dest && dest.machines && this.balanceLoad(dest)
     var upstreamAddress = machine && machine.address
     var upstreamPort = dest && dest.ports && (dest.ports[socket.localPort] || dest.ports['*'])
-    if (!upstreamAddress || !upstreamPort) {
+    if (!upstreamAddress || !upstreamPort || upstreamPort === true) {
       res.statusCode = 503
       res.end('service unavailable')
       return
@@ -457,7 +457,7 @@ class Splicer extends EventEmitter {
     if (!upstreamPort) {
       upstreamPort = app.ports['*']
     }
-    if (upstreamAddress && upstreamPort) {
+    if (upstreamAddress && upstreamPort && upstreamPort !== true) {
       var transport = app.tls.back ? tls : net
       var upstream = transport.connect({
         host: upstreamAddress,
