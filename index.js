@@ -4,13 +4,22 @@ import tls from 'tls'
 import http from 'http'
 import https from 'https'
 import url from 'url'
-import diff from 'object-diff'
 import isTls from 'is-tls-client-hello'
 import extractSni from 'sni'
 import { parse as basicAuth } from 'basic-auth'
 import crypto from 'crypto'
 const isHttp = /^.+ .+ HTTP\/1\.1$/m
 const extractHostHeader = /\r\nhost: (.+?)(?:\r|$)/i
+
+function diff (a, b) {
+	const patch = {}
+	for (const key in b) {
+		if (a[key] !== b[key]) {
+			patch[key] = b[key]
+		}
+	}
+	return patch
+}
 
 function safeCompare (a, b) {
 	if (typeof a !== 'string' || typeof b !== 'string') return false
