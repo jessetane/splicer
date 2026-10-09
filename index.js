@@ -269,7 +269,8 @@ class Splicer extends EventEmitter {
   }
 
   _ontlsConnectionSecure (socket) {
-    var app = socket.app = socket._handle?._parentWrap?.app || socket.app
+    var name = socket.servername
+    var app = socket.app = this._appByName(name)
     if (!app) {
       socket.destroy()
       return
