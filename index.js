@@ -357,6 +357,7 @@ class Splicer extends EventEmitter {
     }
     req.headers['x-forwarded-proto'] = app.tls.front ? 'https' : 'http'
     req.headers['x-forwarded-for'] = socket.remoteAddress
+    req.headers['x-forwarded-host'] = req.headers.host
     var transport = http
     var agent = null
     var rejectUnauthorized = true
@@ -384,7 +385,9 @@ class Splicer extends EventEmitter {
       agent,
       rejectUnauthorized
     }
-    opts.headers.host = upstreamPort == 443 || upstreamPort == 80 ? upstreamAddress : `${upstreamAddress}:${upstreamPort}`
+    if (dest.http && dest.http.rewriteHost) {
+      opts.headers.host = upstreamPort == 443 || upstreamPort == 80 ? upstreamAddress : `${upstreamAddress}:${upstreamPort}`
+    }
     var uReq = transport.request(opts)
     uReq.on('error', err => {
       res.statusCode = 503

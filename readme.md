@@ -124,7 +124,8 @@ proxy.apps = {
   insecureHTTP: {
     http: {
       pre: `return req => req.headers['x-added-for-upstream'] = 'foo'`, // these get eval'd
-      post: `return res => res.headers['x-added-for-client'] = 'bar'`
+      post: `return res => res.headers['x-added-for-client'] = 'bar'`,
+      rewriteHost: true // rewrite host header to match upstream machine:port (defaults to false)
     },
     machines: {
       main: true
