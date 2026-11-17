@@ -111,9 +111,7 @@ async function reloadConfig () {
 }
 
 function reloadFileServer () {
-	if (!config.fileServerPort) {
-		config.fileServerPort = 8000
-	}
+	config.fileServerPort = Number(config.fileServerPort) || 8000
 	if (fileServer && fileServer.port !== config.fileServerPort) {
 		console.log(`stopped listening on ${fileServer.port}`)
 		fileServer.close()

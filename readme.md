@@ -25,8 +25,8 @@ cat << EOF > ./config.json
   "apps": {
     "demo": {
       "ports": {
-        "80": "8000",
-        "443": "8000"
+        "80": 8000,
+        "443": 8000
       },
       "machines": {
         "localhost": true
@@ -40,7 +40,7 @@ cat << EOF > ./config.json
       "address": "127.0.0.1"
     }
   },
-  "fileServerPort": "8000"
+  "fileServerPort": 8000
 }
 EOF
 ```
