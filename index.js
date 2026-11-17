@@ -525,13 +525,10 @@ class Splicer extends EventEmitter {
         rejectUnauthorized: app.tls.back !== 'insecure'
       })
       upstream.setNoDelay(true)
-      upstream.on('error', err => {
-        // console.log('UPSTREAM ERROR', err)
-      })
-      upstream.setTimeout(this.timeout, () => {
-        // console.log('UPSTREAM TIMEOUT')
-        upstream.destroy()
-      })
+      upstream.on('error', () => socket.destroy())
+      upstream.on('close', () => socket.destroy())
+      socket.on('close', () => upstream.destroy())
+      upstream.setTimeout(this.timeout, () => upstream.destroy())
       socket.pipe(upstream).pipe(socket)
     } else {
       socket.destroy()
