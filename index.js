@@ -29,6 +29,37 @@ function safeCompare (a, b) {
 	return crypto.timingSafeEqual(bufA, bufB)
 }
 
+function formatHttpHead (statusCode, statusMessage, headers) {
+	let lines = ''
+	for (const name in headers) {
+		const value = headers[name]
+		if (Array.isArray(value)) {
+			for (const item of value) {
+				lines += `${name}: ${item}\r\n`
+			}
+		} else if (value !== undefined) {
+			lines += `${name}: ${value}\r\n`
+		}
+	}
+	return `HTTP/1.1 ${statusCode} ${statusMessage || http.STATUS_CODES[statusCode] || ''}\r\n${lines}\r\n`
+}
+
+function endHttp (res, isUpgrade, statusCode, body = '', headers = {}) {
+	if (isUpgrade) {
+		if (!res.destroyed) {
+			res.end(formatHttpHead(statusCode, null, Object.assign({
+				'connection': 'close',
+				'content-length': Buffer.byteLength(body)
+			}, headers)) + body)
+		}
+	} else if (!res.headersSent) {
+		res.writeHead(statusCode, headers)
+		res.end(body)
+	} else {
+		res.destroy()
+	}
+}
+
 class Splicer extends EventEmitter {
   constructor (opts = {}) {
     super()
@@ -289,12 +320,12 @@ class Splicer extends EventEmitter {
     }
   }
 
-  _onhttpRequest (req, res) {
+  _onhttpRequest (req, res, bodyHead) {
+    var isUpgrade = bodyHead !== undefined
     var socket = req.socket
     var app = socket.app && Object.hasOwn(this.apps, socket.app.id) ? this.apps[socket.app.id] : null
     if (!app) {
-      res.statusCode = 404
-      res.end('not found')
+      endHttp(res, isUpgrade, 404, 'not found')
       return
     }
     if (!app.http) {
@@ -309,9 +340,7 @@ class Splicer extends EventEmitter {
     if (name !== cname) {
       var protocol = app.tls.front ? 'https' : 'http'
       port = port ? ':' + port : ''
-      res.setHeader('location', `${protocol}://${cname}${port}${req.url}`)
-      res.statusCode = 302
-      res.end()
+      endHttp(res, isUpgrade, 302, '', { location: `${protocol}://${cname}${port}${req.url}` })
       return
     }
     var httpAuth = app.http.auth
@@ -322,9 +351,7 @@ class Splicer extends EventEmitter {
         // this next check shouldn't be necessary but
         // https://bugs.webkit.org/show_bug.cgi?id=80362
         if (auth || req.headers.upgrade !== 'websocket') {
-          res.statusCode = 401
-          res.setHeader('WWW-Authenticate', `Basic realm="secure area"`)
-          res.end('access denied')
+          endHttp(res, isUpgrade, 401, 'access denied', { 'WWW-Authenticate': 'Basic realm="secure area"' })
           return
         }
       }
@@ -351,8 +378,7 @@ class Splicer extends EventEmitter {
     var upstreamAddress = machine && machine.address
     var upstreamPort = dest && dest.ports && (dest.ports[socket.localPort] || dest.ports['*'])
     if (!upstreamAddress || !upstreamPort || upstreamPort === true) {
-      res.statusCode = 503
-      res.end('service unavailable')
+      endHttp(res, isUpgrade, 503, 'service unavailable')
       return
     }
     req.headers['x-forwarded-proto'] = app.tls.front ? 'https' : 'http'
@@ -390,16 +416,21 @@ class Splicer extends EventEmitter {
     }
     var uReq = transport.request(opts)
     uReq.on('error', err => {
-      res.statusCode = 503
-      res.end('service unavailable')
+      endHttp(res, isUpgrade, 503, 'service unavailable')
     })
     req.on('close', () => !req.complete && uReq.destroy())
     res.on('close', () => !res.writableEnded && uReq.destroy())
     uReq.on('response', onresponse)
     uReq.on('upgrade', onresponse)
-    req.pipe(uReq)
-    function onresponse (uRes, uSocket) {
+    if (isUpgrade) {
+      uReq.end()
+    } else {
+      req.pipe(uReq)
+    }
+    function onresponse (uRes, uSocket, uBodyHead) {
+      uRes.on('error', () => res.destroy())
       if (!app.http) {
+        if (uSocket) uSocket.destroy()
         socket.destroy()
         return
       }
@@ -409,15 +440,25 @@ class Splicer extends EventEmitter {
         }
         hooks.post(uRes, app)
       }
-      var connection = uRes.headers.connection
-      if (connection && connection.toLowerCase() === 'upgrade') {
-        var headers = ''
-        for (var name in uRes.headers) {
-          headers += `${name}: ${uRes.headers[name]}\r\n`
+      if (uSocket) {
+        if (!isUpgrade) {
+          uSocket.destroy()
+          endHttp(res, false, 502, 'bad gateway')
+          return
         }
-        var head = `HTTP/1.1 ${uRes.statusCode} ${uRes.statusMessage}\r\n${headers}\r\n`
-        res.write(head)
+        uSocket.on('error', () => res.destroy())
+        uSocket.on('close', () => res.destroy())
+        res.on('close', () => uSocket.destroy())
+        res.write(formatHttpHead(uRes.statusCode, uRes.statusMessage, uRes.headers))
+        if (uBodyHead && uBodyHead.length) res.write(uBodyHead)
+        if (bodyHead && bodyHead.length) uSocket.write(bodyHead)
         uSocket.pipe(res).pipe(uSocket)
+      } else if (isUpgrade) {
+        delete uRes.headers['transfer-encoding']
+        delete uRes.headers['keep-alive']
+        uRes.headers.connection = 'close'
+        res.write(formatHttpHead(uRes.statusCode, uRes.statusMessage, uRes.headers))
+        uRes.pipe(res)
       } else {
         res.writeHead(
           uRes.statusCode,
