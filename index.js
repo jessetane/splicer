@@ -350,7 +350,7 @@ class Splicer extends EventEmitter {
       if (!expectedPass || !safeCompare(auth.pass, expectedPass)) {
         // this next check shouldn't be necessary but
         // https://bugs.webkit.org/show_bug.cgi?id=80362
-        if (auth || req.headers.upgrade !== 'websocket') {
+        if (auth || !isUpgrade) {
           endHttp(res, isUpgrade, 401, 'access denied', { 'WWW-Authenticate': 'Basic realm="secure area"' })
           return
         }
@@ -454,6 +454,11 @@ class Splicer extends EventEmitter {
         if (bodyHead && bodyHead.length) uSocket.write(bodyHead)
         uSocket.pipe(res).pipe(uSocket)
       } else if (isUpgrade) {
+        if (httpAuth && !auth) {
+          uRes.destroy()
+          endHttp(res, true, 401, 'access denied', { 'WWW-Authenticate': 'Basic realm="secure area"' })
+          return
+        }
         delete uRes.headers['transfer-encoding']
         delete uRes.headers['keep-alive']
         uRes.headers.connection = 'close'
