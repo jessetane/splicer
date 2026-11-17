@@ -114,25 +114,24 @@ function reloadFileServer () {
 	if (!config.fileServerPort) {
 		config.fileServerPort = 8000
 	}
-	if (fileServer) {
-		if (fileServer.port !== config.fileServerPort) {
-			console.log(`stopped listening on ${fileServer.port}`)
-			fileServer.close()
-		} else {
-			return
-		}
+	if (fileServer && fileServer.port !== config.fileServerPort) {
+		console.log(`stopped listening on ${fileServer.port}`)
+		fileServer.close()
+		fileServer = null
 	}
-	fileServer = new MultiRoot({ port: config.fileServerPort })
+	if (!fileServer) {
+		fileServer = new MultiRoot({ port: config.fileServerPort })
+		fileServer.on('listen', () => {
+			console.log(`started listening on ${fileServer.port}`)
+		})
+		fileServer.on('serve', path => {
+			console.log(`started serving ${path}`)
+		})
+		fileServer.on('unserve', path => {
+			console.log(`stopped serving ${path}`)
+		})
+	}
 	fileServer.names = proxy.names
 	fileServer.apps = proxy.apps
-	fileServer.on('listen', () => {
-		console.log(`started listening on ${fileServer.port}`)
-	})
-	fileServer.on('serve', path => {
-		console.log(`started serving ${path}`)
-	})
-	fileServer.on('unserve', path => {
-		console.log(`stopped serving ${path}`)
-	})
 	fileServer.reload()
 }
