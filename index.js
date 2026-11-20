@@ -8,7 +8,7 @@ import isTls from 'is-tls-client-hello'
 import extractSni from 'sni'
 import { parse as basicAuth } from 'basic-auth'
 import crypto from 'crypto'
-const isHttp = /^.+ .+ HTTP\/1\.1$/m
+const isHttp = /^.+ .+ HTTP\/1\.[01]$/m
 const extractHostHeader = /\r\nhost: (.+?)(?:\r|$)/i
 
 function diff (a, b) {
@@ -207,11 +207,16 @@ class Splicer extends EventEmitter {
       firstPacket = Buffer.concat([firstPacket, socket.read() || Buffer.alloc(0)])
       const r = isTls(firstPacket)
       if (r > 1) return
-      socket.removeListener('readable', onreadable)
       if (r === 1) {
+        socket.removeListener('readable', onreadable)
         self._ontlsConnection(socket, firstPacket)
       } else {
         var headers = firstPacket.toString('ascii')
+        if (!headers.includes('\r\n\r\n')) {
+          if (firstPacket.length > 16384) socket.destroy()
+          return
+        }
+        socket.removeListener('readable', onreadable)
         if (isHttp.test(headers)) {
           self._onhttpConnection(socket, firstPacket, headers)
         } else {
