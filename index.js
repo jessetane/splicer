@@ -530,7 +530,7 @@ class Splicer extends EventEmitter {
       var upstream = transport.connect({
         host: upstreamAddress,
         port: upstreamPort,
-        servername: upstreamAddress,
+        servername: net.isIP(upstreamAddress) ? undefined : upstreamAddress,
         rejectUnauthorized: app.tls.back !== 'insecure'
       })
       upstream.setNoDelay(true)
