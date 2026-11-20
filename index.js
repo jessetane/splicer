@@ -365,6 +365,9 @@ class Splicer extends EventEmitter {
         }
       }
     }
+    req.headers['x-forwarded-proto'] = app.tls.front ? 'https' : 'http'
+    req.headers['x-forwarded-for'] = socket.remoteAddress
+    req.headers['x-forwarded-host'] = host
     var { pre, post } = app.http
     var hooks = this.hooks[app.id]
     if (pre || post) {
@@ -390,9 +393,6 @@ class Splicer extends EventEmitter {
       endHttp(res, isUpgrade, 503, 'service unavailable')
       return
     }
-    req.headers['x-forwarded-proto'] = app.tls.front ? 'https' : 'http'
-    req.headers['x-forwarded-for'] = socket.remoteAddress
-    req.headers['x-forwarded-host'] = req.headers.host
     var transport = http
     var agent = null
     var rejectUnauthorized = true
