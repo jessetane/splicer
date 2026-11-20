@@ -305,15 +305,15 @@ class Splicer extends EventEmitter {
   }
 
   _ontlsConnectionSecure (socket) {
+    socket.on('error', err => {
+      // console.log('SECURE ERROR', err)
+    })
     var name = socket.servername
     var app = socket.app = this._appByName(name)
     if (!app) {
       socket.destroy()
       return
     }
-    socket.on('error', err => {
-      // console.log('SECURE ERROR', err)
-    })
     socket.setTimeout(this.timeout, () => {
       // console.log('SECURE TIMEOUT')
       socket.destroy()
