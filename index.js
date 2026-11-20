@@ -91,7 +91,7 @@ class Splicer extends EventEmitter {
 
     // tls terminator
     this._tlsServer = new tls.Server({
-      SNICallback: (name, cb) => this.SNICallback(name, cb)
+      SNICallback: (name, cb) => this.SNICallback(name && name.toLowerCase(), cb)
     })
     this._tlsServer.on('secureConnection', this._ontlsConnectionSecure)
 
