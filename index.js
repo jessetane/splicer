@@ -323,20 +323,24 @@ class Splicer extends EventEmitter {
   _onhttpRequest (req, res, bodyHead) {
     var isUpgrade = bodyHead !== undefined
     var socket = req.socket
-    var app = socket.app && Object.hasOwn(this.apps, socket.app.id) ? this.apps[socket.app.id] : null
-    if (!app) {
-      endHttp(res, isUpgrade, 404, 'not found')
+    var host = req.headers.host
+    if (!host) {
+      endHttp(res, isUpgrade, 400, 'bad request')
+      return
+    }
+    var parts = host.split(':')
+    var name = parts[0]
+    var port = parts[1]
+    var app = this._appByName(name)
+    if (!app || !socket.app || app.id !== socket.app.id) {
+      endHttp(res, isUpgrade, 421, 'misdirected request')
       return
     }
     if (!app.http) {
       socket.destroy()
       return
     }
-    var host = req.headers.host || ''
-    var parts = host.split(':')
-    var name = parts[0]
-    var port = parts[1]
-    var cname = this._resolveCname(name, app.http && app.http.cname)
+    var cname = this._resolveCname(name, app.http.cname)
     if (name !== cname) {
       var protocol = app.tls.front ? 'https' : 'http'
       port = port ? ':' + port : ''
