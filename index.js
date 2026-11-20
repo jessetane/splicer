@@ -232,7 +232,8 @@ class Splicer extends EventEmitter {
     if (name) name = name.toLowerCase()
     var app = this._appByName(name)
     this.emit('request', socket, name, app)
-    if (!app || !app.machines || !app.ports) {
+    var upstreamPort = app && app.ports && (app.ports[socket.localPort] || app.ports['*'])
+    if (!app || !app.machines || !upstreamPort || upstreamPort === true) {
       socket.destroy()
       return
     }
